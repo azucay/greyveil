@@ -205,6 +205,78 @@ Commit + Push → Review → Merge to main
 - `getBuildingAt(tileX, tileY)` über Tile-Koordinate statt Pixel macht Klick-Erkennung einfach und präzise
 ---
 
+---
+### [Pre-Fixes] Z-Order, A* Pathfinding, Gebäude-Labels — 2026-05-09
+**Was ich vorher hätte wissen sollen:**
+- Phaser `Container.setDepth()` kontrolliert die globale Render-Reihenfolge: Map=0, Gebäude=1, Worker=2, Soldaten=3
+- A*-Pathfinding braucht eine `nearestWalkable()`-Fallback-Funktion für Ziele auf unwalkbaren Tiles (z.B. Ressourcen-Nodes auf Bergrand)
+- Gebäude-Labels als `scene.add.text()` als Container-Kind — `stroke: '#000000'` macht Text auf hellem Hintergrund lesbar
+
+**Fallstricke:**
+- 8-direktionale A*-Diagonalen brauchen Corner-Check: beide Nachbarn (dx,0) und (0,dy) müssen walkable sein — sonst laufen Units diagonal durch Ecken
+- `getSoldierTraining()` gab `{ type: SoldierType }` zurück — `type` kollidiert konzeptuell mit dem Diskriminanten-Feld in `GameSelection`. Zu `soldierType` umbenannt
+- Diagonal-Movement-Cost muss 1.414 statt 1 sein für korrekte Pfadlängenberechnung
+
+**Nützliche Erkenntnisse:**
+- RenderTexture bäckt die Map einmalig — `rt.setDepth(0)` platziert sie unterhalb aller Container
+- Spiral-Search in `nearestWalkable()` (Radius 1→15) findet zuverlässig den nächsten freien Tile
+- A* mit einfachem Array+indexOf ist bei 40×30 Grid schnell genug — kein Heap nötig
+---
+
+---
+### [T006] Combat System — 2026-05-09
+**Was ich vorher hätte wissen sollen:**
+- `Soldier` als `Container` mit `setDepth(3)` — weiße Innenpunkt-Markierung unterscheidet Soldaten von Workern (die kein Innenpunkt haben)
+- Soldaten-Training ist per Kaserne (Map-Key `"tileX,tileY"`) — ein Training-Slot pro Kaserne, nicht global
+- `startTrainingSoldier()` braucht einen `faction`-Parameter — AI-Soldaten dürfen AI-Ressourcen abziehen, nicht Player-Ressourcen
+
+**Fallstricke:**
+- `soldierTraining` Map muss `faction` mitführen, damit nach Training-Abschluss der richtige Fraktions-Soldier gespawnt wird
+- `CommandAttack` braucht beide Target-Typen (`Soldier | Building`) — `instanceof`-Check in CombatSystem.update() für korrekten `takeDamage`-Aufruf
+- `Building.takeDamage()` muss `buildingSystem.removeBuilding()` von außen triggern — Building selbst hat keinen Zugriff auf BuildingSystem
+
+**Nützliche Erkenntnisse:**
+- Auto-Attack-Logik in `CombatSystem.update()`: erst nächster feindlicher Soldier, dann nächstes feindliches Gebäude — sorgt für sinnvolles Verhalten ohne explizite Befehle
+- HP-Bar direkt auf Soldier-Container (Phaser Graphics) statt React-Overlay — kein Event-Overhead
+- Tote Soldaten aus `this.soldiers`-Array erst am Ende von `update()` filtern — verhindert Concurrent-Modification während Iteration
+---
+
+---
+### [T007] Ork-KI (Rule-based AISystem) — 2026-05-09
+**Was ich vorher hätte wissen sollen:**
+- AISystem-`init()` spawnt AI Town Hall + 3 Worker direkt in Phaser — kein separates Scene-Lifecycle nötig
+- Strategie-State-Machine (gather→build→attack) mit 5s Decision-Timer ist simpler als Frame-basierte Logik
+- `buildAIBuilding()` muss spiral-search für freie walkable Tiles machen (gleiche Logik wie `nearestWalkable`)
+
+**Fallstricke:**
+- AI-Worker haben `faction: 'ai'` — `spawnWorker()` zählt nur Player-Worker für `popCount`, AI-Worker werden ignoriert ✓
+- `commandBuild()` verwendet A*-Pathfinding — AI-Builder muss zunächst idle sein, ansonsten kann bestehende Gather-Loop unterbrochen werden
+- Kaserne-Building-Cost muss in `AISystem.buildAIBuilding()` manuell von AI-Ressourcen abgezogen werden (BuildingSystem.addBuilding kostet nichts)
+
+**Nützliche Erkenntnisse:**
+- `consultClaude()` ist async und wird mit `void` aufgerufen — kein Await in synchronem update()-Loop
+- Strategie-Override durch Claude API: nur bei validen Werten ('gather'|'build'|'attack') übernehmen — JSON-Parse-Fehler ignorieren
+- AI greift erst bei 3+ Soldaten an — verhindert sinnlose 1-Unit-Raids
+---
+
+---
+### [T008] Claude API Makrostrategie — 2026-05-09
+**Was ich vorher hätte wissen sollen:**
+- Prompt Caching via `cache_control: { type: 'ephemeral' }` auf dem System-Prompt spart Tokens bei wiederholten Calls
+- Claude Haiku ist für kurze strukturierte Antworten (JSON) ausreichend — kein Sonnet nötig
+- `regex.match(/\{[\s\S]*?\}/)` extrahiert JSON aus Claude-Antworten robuster als Full-JSON-Parse (Claude kann Präfixtext hinzufügen)
+
+**Fallstricke:**
+- `app/api/ai/route.ts` muss im `app/` Verzeichnis liegen (Next.js App Router) — nicht in `pages/api/`
+- `Anthropic()` Client-Instanz auf Modul-Ebene erstellen (nicht pro Request) — vermeidet Connection-Overhead
+- Claude kann Newlines im JSON haben — `[\s\S]*?` statt `.` im Regex für zuverlässiges Matching
+
+**Nützliche Erkenntnisse:**
+- 30s Claude-Interval in AISystem ist für RTS-Makrostrategie ausreichend — häufigere Calls würden API-Kosten treiben ohne Mehrwert
+- Fallback auf `{ strategy: 'gather' }` bei Parsing-Fehler — AI bleibt funktionsfähig ohne API-Antwort
+- `@anthropic-ai/sdk` war bereits im package.json — kein separates `npm install` nötig
+---
+
 Format:
 ```
 ---

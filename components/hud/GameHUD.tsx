@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { EventBus } from '@/game/EventBus'
-import type { GameSelection } from '@/types/units'
+import type { GameSelection, SoldierType } from '@/types/units'
 import type { BuildingType } from '@/types/buildings'
 import type { Resources } from '@/types/resources'
 
@@ -52,6 +52,10 @@ export default function GameHUD({ resources }: Props) {
 
   const handleTrainWorker = () => {
     EventBus.emit<void>('request-train-worker', undefined)
+  }
+
+  const handleTrainSoldier = (type: SoldierType) => {
+    EventBus.emit<SoldierType>('request-train-soldier', type)
   }
 
   const canAfford = (type: BuildingType): boolean => {
@@ -118,10 +122,10 @@ export default function GameHUD({ resources }: Props) {
     marginLeft: '4px',
   })
 
-  const progressFillStyle = (progress: number): React.CSSProperties => ({
+  const progressFillStyle = (progress: number, color = '#22c55e'): React.CSSProperties => ({
     height: '100%',
     width: `${Math.round(progress * 100)}%`,
-    background: '#22c55e',
+    background: color,
     borderRadius: '3px',
     transition: 'width 0.1s linear',
   })
@@ -179,6 +183,25 @@ export default function GameHUD({ resources }: Props) {
       )
     }
 
+    if (selection.type === 'soldier') {
+      const ratio = selection.hp / selection.maxHp
+      const barColor = ratio > 0.3 ? '#22c55e' : '#ef4444'
+      const typeName = selection.soldierType === 'swordsman' ? 'Swordsman' : 'Archer'
+      return (
+        <div style={rowStyle}>
+          <span style={{ color: '#a78bfa' }}>{typeName}</span>
+          <span style={{ color: '#9ca3af' }}>—</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ color: '#9ca3af' }}>HP</span>
+            <span style={progressBarStyle()}>
+              <span style={progressFillStyle(ratio, barColor)} />
+            </span>
+            <span style={{ color: barColor }}>{selection.hp}/{selection.maxHp}</span>
+          </span>
+        </div>
+      )
+    }
+
     if (selection.type === 'townhall') {
       return (
         <div style={rowStyle}>
@@ -207,11 +230,51 @@ export default function GameHUD({ resources }: Props) {
     }
 
     if (selection.type === 'barracks') {
+      if (!selection.built) {
+        return (
+          <div style={rowStyle}>
+            <span style={{ color: '#f97316' }}>Barracks</span>
+            <span style={{ color: '#9ca3af' }}>—</span>
+            <span style={{ color: '#9ca3af' }}>Under Construction</span>
+          </div>
+        )
+      }
+
+      const t = selection.training
+      const canSword = resources.metal >= 50 && resources.food >= 20 && !t
+      const canArcher = resources.wood >= 30 && resources.metal >= 30 && !t
+
       return (
         <div style={rowStyle}>
           <span style={{ color: '#f97316' }}>Barracks</span>
           <span style={{ color: '#9ca3af' }}>—</span>
-          <span>{selection.built ? 'Ready' : 'Under Construction'}</span>
+          <button
+            style={btnStyle(false, canSword)}
+            onClick={() => canSword && handleTrainSoldier('swordsman')}
+            disabled={!canSword}
+          >
+            Sword (50M 20F)
+          </button>
+          <button
+            style={btnStyle(false, canArcher)}
+            onClick={() => canArcher && handleTrainSoldier('archer')}
+            disabled={!canArcher}
+          >
+            Archer (30W 30M)
+          </button>
+          {t && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ color: '#9ca3af' }}>
+                {t.soldierType === 'swordsman' ? 'Sword' : 'Archer'}...
+              </span>
+              <span style={progressBarStyle()}>
+                <span style={progressFillStyle(t.progress, '#a78bfa')} />
+              </span>
+              <span style={{ color: '#9ca3af' }}>
+                {Math.round(t.progress * 100)}%
+              </span>
+            </span>
+          )}
         </div>
       )
     }
