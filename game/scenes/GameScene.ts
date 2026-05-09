@@ -13,6 +13,9 @@ export class GameScene extends Phaser.Scene {
     left: Phaser.Input.Keyboard.Key
     right: Phaser.Input.Keyboard.Key
   }
+  private dragStartX = 0
+  private dragStartY = 0
+  private isDragging = false
 
   constructor() {
     super({ key: 'GameScene' })
@@ -27,6 +30,17 @@ export class GameScene extends Phaser.Scene {
 
     this.cameras.main.setBounds(0, 0, MAP_WIDTH * TILE_SIZE, MAP_HEIGHT * TILE_SIZE)
 
+    this.setupKeyboard()
+    this.setupDragPanning()
+
+    this.scene.launch('UIScene')
+  }
+
+  update(_time: number, delta: number): void {
+    this.handleKeyboardCamera(delta)
+  }
+
+  private setupKeyboard(): void {
     this.cursors = this.input.keyboard!.createCursorKeys()
     this.wasd = {
       up: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.W),
@@ -34,15 +48,34 @@ export class GameScene extends Phaser.Scene {
       left: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.A),
       right: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D),
     }
-
-    this.scene.launch('UIScene')
   }
 
-  update(_time: number, delta: number): void {
-    this.handleCameraInput(delta)
+  private setupDragPanning(): void {
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      this.isDragging = true
+      this.dragStartX = pointer.x
+      this.dragStartY = pointer.y
+    })
+
+    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (!this.isDragging || !pointer.isDown) return
+      const cam = this.cameras.main
+      cam.scrollX -= pointer.x - this.dragStartX
+      cam.scrollY -= pointer.y - this.dragStartY
+      this.dragStartX = pointer.x
+      this.dragStartY = pointer.y
+    })
+
+    this.input.on('pointerup', () => {
+      this.isDragging = false
+    })
+
+    this.input.on('pointerupoutside', () => {
+      this.isDragging = false
+    })
   }
 
-  private handleCameraInput(delta: number): void {
+  private handleKeyboardCamera(delta: number): void {
     const speed = (CAMERA_SPEED * delta) / 1000
     const cam = this.cameras.main
 

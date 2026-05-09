@@ -14,4 +14,5 @@ body {
 
 #game-container canvas {
   display: block;
+  touch-action: none;
 }
