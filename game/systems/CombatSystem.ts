@@ -72,11 +72,8 @@ export class CombatSystem {
               }
             }
           } else {
-            // Chase the target
-            soldier.state = 'moving'
-            const ratio = Math.min((soldier.speed * delta / 1000) / dist, 1)
-            soldier.x += dx * ratio
-            soldier.y += dy * ratio
+            // Chase target — setMoveTarget so Soldier.update() handles movement without conflict
+            soldier.setMoveTarget(tx, ty)
           }
         } else {
           soldier.state = 'idle'

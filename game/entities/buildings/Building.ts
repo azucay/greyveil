@@ -50,8 +50,8 @@ export class Building extends Phaser.GameObjects.Container {
     }
     const hh = config.height / 2
     this.labelText = scene.add.text(0, hh + 3, labelNames[buildingType], {
-      fontSize: '7px', color: '#ffffff', fontFamily: 'monospace',
-      stroke: '#000000', strokeThickness: 2,
+      fontSize: '10px', color: '#ffffff', fontFamily: 'monospace',
+      stroke: '#000000', strokeThickness: 3,
     }).setOrigin(0.5, 0)
 
     this.add(this.bodyGfx)

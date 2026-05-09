@@ -123,6 +123,7 @@ export default function GameHUD({ resources }: Props) {
   })
 
   const progressFillStyle = (progress: number, color = '#22c55e'): React.CSSProperties => ({
+    display: 'block',
     height: '100%',
     width: `${Math.round(progress * 100)}%`,
     background: color,
