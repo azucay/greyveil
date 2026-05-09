@@ -171,6 +171,40 @@ Commit + Push → Review → Merge to main
 - Shadow-Effekt (dunkler Offset-Rect) auf Nodes macht sie visuell deutlicher auf der Karte
 ---
 
+---
+### [T004] Arbeiter-Einheit — 2026-05-09
+**Was ich vorher hätte wissen sollen:**
+- `Phaser.GameObjects.Container` hat eine eigene `moveTo(child, index)` Methode — eigene `moveTo()` Methode MUSS anders benannt werden (z.B. `setMoveTarget()`), sonst TypeScript-Signaturkonflikt
+- Tap vs. Drag auf Mobile: pointerdown+pointerup mit Distanzschwelle (<15px) trennt sauber zwischen Tap (Selektion/Befehl) und Drag (Kamera)
+
+**Fallstricke:**
+- `Container.moveTo()` clash → TypeScript Error: rename zu `setMoveTarget()`
+- Drag-Panning und Tap-Selection teilen dieselben Pointer-Events — Tap erst in `pointerup` auswerten, nicht in `pointerdown`
+- `pop-changed` Event emittiert nur `count` (number), nicht `{ count, cap }` — HUD muss cap separat verwalten oder Event erweitern
+
+**Nützliche Erkenntnisse:**
+- Callback-Kette für Gather-Loop: `setMoveTarget → onArrived → gathering → gatherTick → setMoveTarget(base) → deposit → setMoveTarget(node) → ...` — sauber ohne Frame-Polling
+- `scene.add.graphics()` + `container.add(gfx)` ist die korrekte Pattern für Container-Children in Phaser 3.90
+- Selektion in `pointerup` statt `pointerdown` — vermeidet Konflikt mit Drag-Panning
+---
+
+---
+### [T005] Gebäude-System — 2026-05-09
+**Was ich vorher hätte wissen sollen:**
+- Eine einzige `Building`-Klasse mit `buildingType` Property ist wesentlich einfacher als Abstract-Class-Hierarchie — kein Overhead, gleiche Funktionalität
+- Passive Produktion braucht Float-Akkumulatoren: `metalAccum += 2 * delta/1000` dann `Math.floor()` — sonst wird bei 60fps jedes Frame ein Bruchteil emittiert aber nie ein ganzer Wert übertragen
+
+**Fallstricke:**
+- Gebäude-Platzierung auf Wasser/Berg: doppelte Prüfung nötig — `tile.walkable` UND `tile.type !== 'water'` (beides sollte gleich sein, aber defensive check)
+- `BuildingSystem` als Map mit `"tileX,tileY"` Key macht `isTileOccupied` O(1) — wichtig für spätere Skalierung
+- `building.built = true` muss VOR dem ersten `update()` der BuildingSystem für TownHall gesetzt werden — sonst startet passive Produktion nicht sofort
+
+**Nützliche Erkenntnisse:**
+- `tick(delta)` auf der Building-Klasse selbst (kennt eigene buildTime aus Config) ist sauberer als buildSpeed-Parameter
+- Fortschrittsbalken am Gebäude in Phaser-Canvas statt React-Overlay — spart Event-Overhead
+- `getBuildingAt(tileX, tileY)` über Tile-Koordinate statt Pixel macht Klick-Erkennung einfach und präzise
+---
+
 Format:
 ```
 ---

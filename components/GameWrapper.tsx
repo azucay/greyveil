@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import GameCanvas from './GameCanvas'
 import ResourceHUD from './hud/ResourceHUD'
+import GameHUD from './hud/GameHUD'
 import { EventBus } from '@/game/EventBus'
 import type { Resources } from '@/types/resources'
 
@@ -27,6 +28,7 @@ export default function GameWrapper() {
     <div className="relative w-full h-full">
       <GameCanvas />
       <ResourceHUD resources={resources} />
+      <GameHUD resources={resources} />
     </div>
   )
 }
