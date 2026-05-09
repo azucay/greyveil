@@ -154,6 +154,23 @@ Commit + Push → Review → Merge to main
 - WASD + Pfeiltasten parallel via `createCursorKeys()` + `addKey()` — beide funktionieren gleichzeitig
 ---
 
+---
+### [T003] Ressourcen-System — 2026-05-09
+**Was ich vorher hätte wissen sollen:**
+- Nahrung ist kein Karten-Node — sie wird durch Farmen produziert (T005). Daher `NODE_CONFIG` als `Record<Exclude<ResourceType, 'food'>, ...>` typen
+- EventBus muss typensicher sein: `emit<Resources>('resources-updated', ...)` und `on<Resources>(...)` vermeiden Type-Casts an der Aufrufstelle
+
+**Fallstricke:**
+- `setResources` aus `useState` hat Typ `Dispatch<SetStateAction<Resources>>` → nicht direkt als `Callback<Resources>` übergeben, lokalen Handler als Wrapper verwenden
+- Resource Nodes müssen nach Map-Generierung auf Walkability prüfen (Cluster können Grass-Tiles überschreiben)
+- Abstand zu Startpunkten mit Manhattan-Distanz statt Euklidischer — einfacher, reicht für MVP
+
+**Nützliche Erkenntnisse:**
+- Phaser → React Kommunikation via EventBus funktioniert zuverlässig: `emit()` in Phaser Scene, `on()` in `useEffect` mit Cleanup
+- `depleteNode()` zerstört das Graphics-Objekt direkt — kein Array-Rebuild nötig, Map-Lookup via `nodeId`
+- Shadow-Effekt (dunkler Offset-Rect) auf Nodes macht sie visuell deutlicher auf der Karte
+---
+
 Format:
 ```
 ---

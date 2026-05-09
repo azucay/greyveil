@@ -1,9 +1,11 @@
 import * as Phaser from 'phaser'
 import { MAP_WIDTH, MAP_HEIGHT, TILE_SIZE, CAMERA_SPEED } from '@/game/constants'
 import { MapSystem } from '@/game/systems/MapSystem'
+import { ResourceSystem } from '@/game/systems/ResourceSystem'
 
 export class GameScene extends Phaser.Scene {
   private mapSystem!: MapSystem
+  resourceSystem!: ResourceSystem
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys
   private wasd!: {
     up: Phaser.Input.Keyboard.Key
@@ -19,6 +21,9 @@ export class GameScene extends Phaser.Scene {
   create(): void {
     this.mapSystem = new MapSystem()
     this.mapSystem.render(this)
+
+    this.resourceSystem = new ResourceSystem()
+    this.resourceSystem.placeNodes(this, this.mapSystem.getMap())
 
     this.cameras.main.setBounds(0, 0, MAP_WIDTH * TILE_SIZE, MAP_HEIGHT * TILE_SIZE)
 
