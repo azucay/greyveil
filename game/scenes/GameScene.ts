@@ -167,6 +167,10 @@ export class GameScene extends Phaser.Scene {
         return
       }
       if (building.faction === 'player') {
+        if (this.selectedWorker && !building.built) {
+          this.unitSystem.commandBuild(this.selectedWorker, building)
+          return
+        }
         this.clearSelection()
         this.selectedBuilding = building
         building.setSelected(true)
