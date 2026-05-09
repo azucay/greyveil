@@ -110,13 +110,31 @@ Commit + Push → Review → Merge to main
 
 ## Bekannte Fallstricke
 
-*(wird befüllt sobald Tickets abgeschlossen werden)*
+- Phaser hat keinen Default-Export: `import * as Phaser from 'phaser'` verwenden, nicht `import Phaser from 'phaser'`
+- `dynamic(() => ..., { ssr: false })` ist in Next.js 15 Server Components verboten — muss in einer `'use client'`-Komponente stehen
+- Phaser greift beim Modulimport auf `window` zu → `page.tsx` muss `'use client'` sein oder den Import vollständig client-seitig lazy-loaden
 
 ---
 
 ## Learnings
 
-*(wird nach jedem Ticket befüllt)*
+---
+### [T001] Projekt Setup — 2026-05-09
+**Was ich vorher hätte wissen sollen:**
+- Phaser 3.x exportiert kein Default-Export: `import * as Phaser from 'phaser'` ist der korrekte Import-Stil
+- Next.js 15 App Router verbietet `dynamic(() => ..., { ssr: false })` in Server Components
+- Phaser evaluiert `window` beim Modulimport → prerender schlägt fehl wenn Phaser auch nur transitiv in einem Server Component landet
+
+**Fallstricke:**
+- `app/page.tsx` als Server Component + direkter Import von `GameWrapper` → `window is not defined` beim Build
+- `ssr: false` in Server Component → Build-Fehler `ssr: false is not allowed with next/dynamic in Server Components`
+- Fix: `app/page.tsx` mit `'use client'` markieren, dann funktioniert `dynamic(() => ..., { ssr: false })` problemlos
+
+**Nützliche Erkenntnisse:**
+- `'use client'` auf `page.tsx` ist für reine Game-Pages völlig in Ordnung — kein SEO-Nachteil
+- `import * as Phaser from 'phaser'` gibt Zugang zu `Phaser.Game`, `Phaser.Scene`, `Phaser.AUTO`, allen Types etc.
+- Next.js modifiziert `tsconfig.json` beim ersten Build automatisch (fügt `target: ES2017` hinzu) — das ist erwartetes Verhalten
+---
 
 Format:
 ```
