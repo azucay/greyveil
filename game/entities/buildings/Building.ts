@@ -17,6 +17,7 @@ export class Building extends Phaser.GameObjects.Container {
   private bodyGfx: Phaser.GameObjects.Graphics
   private selectionGfx: Phaser.GameObjects.Graphics
   private progressGfx: Phaser.GameObjects.Graphics
+  private labelText: Phaser.GameObjects.Text
 
   constructor(
     scene: Phaser.Scene,
@@ -44,11 +45,22 @@ export class Building extends Phaser.GameObjects.Container {
     this.selectionGfx = scene.add.graphics()
     this.progressGfx = scene.add.graphics()
 
+    const labelNames: Record<BuildingType, string> = {
+      townhall: 'Town Hall', barracks: 'Barracks', farm: 'Farm', mine: 'Mine',
+    }
+    const hh = config.height / 2
+    this.labelText = scene.add.text(0, hh + 3, labelNames[buildingType], {
+      fontSize: '7px', color: '#ffffff', fontFamily: 'monospace',
+      stroke: '#000000', strokeThickness: 2,
+    }).setOrigin(0.5, 0)
+
     this.add(this.bodyGfx)
     this.add(this.selectionGfx)
     this.add(this.progressGfx)
+    this.add(this.labelText)
 
     scene.add.existing(this)
+    this.setDepth(1)
 
     this.drawBody()
   }
@@ -102,6 +114,15 @@ export class Building extends Phaser.GameObjects.Container {
       this.selectionGfx.lineStyle(2, 0xffffff, 1)
       this.selectionGfx.strokeRect(-hw - 3, -hh - 3, width + 6, height + 6)
     }
+  }
+
+  takeDamage(amount: number): boolean {
+    this.hp = Math.max(0, this.hp - amount)
+    if (this.hp <= 0) {
+      this.destroy()
+      return true
+    }
+    return false
   }
 
   drawProgressBar(): void {

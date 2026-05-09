@@ -2,6 +2,10 @@ import * as Phaser from 'phaser'
 import { TILE_SIZE, MAP_WIDTH, MAP_HEIGHT, PLAYER_START_TILE, AI_START_TILE } from '@/game/constants'
 import type { GameMap, Tile, TileType } from '@/types/map'
 
+interface PathNode {
+  x: number; y: number; g: number; h: number; f: number; parent: PathNode | null
+}
+
 const TILE_COLORS: Record<TileType, number> = {
   grass: 0x86efac,
   water: 0x60a5fa,
@@ -34,6 +38,72 @@ export class MapSystem {
     return this.getTile(x, y)?.walkable ?? false
   }
 
+  findPath(fromTileX: number, fromTileY: number, toTileX: number, toTileY: number): { worldX: number; worldY: number }[] {
+    toTileX = Math.max(0, Math.min(MAP_WIDTH - 1, toTileX))
+    toTileY = Math.max(0, Math.min(MAP_HEIGHT - 1, toTileY))
+    fromTileX = Math.max(0, Math.min(MAP_WIDTH - 1, fromTileX))
+    fromTileY = Math.max(0, Math.min(MAP_HEIGHT - 1, fromTileY))
+
+    if (!this.isWalkable(toTileX, toTileY)) {
+      const nearest = this.nearestWalkable(toTileX, toTileY)
+      if (!nearest) return []
+      toTileX = nearest.x; toTileY = nearest.y
+    }
+
+    const toWorld = (tx: number, ty: number) => ({ worldX: tx * TILE_SIZE + TILE_SIZE / 2, worldY: ty * TILE_SIZE + TILE_SIZE / 2 })
+    if (fromTileX === toTileX && fromTileY === toTileY) return [toWorld(toTileX, toTileY)]
+
+    const h = (x: number, y: number) => Math.abs(x - toTileX) + Math.abs(y - toTileY)
+    const start: PathNode = { x: fromTileX, y: fromTileY, g: 0, h: h(fromTileX, fromTileY), f: h(fromTileX, fromTileY), parent: null }
+    const openSet: PathNode[] = [start]
+    const openMap = new Map<string, PathNode>([[ `${fromTileX},${fromTileY}`, start]])
+    const closed = new Set<string>()
+    const DIRS = [
+      { dx: 0, dy: -1, c: 1 }, { dx: 0, dy: 1, c: 1 }, { dx: -1, dy: 0, c: 1 }, { dx: 1, dy: 0, c: 1 },
+      { dx: -1, dy: -1, c: 1.414 }, { dx: 1, dy: -1, c: 1.414 }, { dx: -1, dy: 1, c: 1.414 }, { dx: 1, dy: 1, c: 1.414 },
+    ]
+
+    while (openSet.length > 0) {
+      let bi = 0
+      for (let i = 1; i < openSet.length; i++) if (openSet[i].f < openSet[bi].f) bi = i
+      const cur = openSet.splice(bi, 1)[0]
+      openMap.delete(`${cur.x},${cur.y}`)
+      closed.add(`${cur.x},${cur.y}`)
+
+      if (cur.x === toTileX && cur.y === toTileY) {
+        const path: { worldX: number; worldY: number }[] = []
+        let n: PathNode | null = cur
+        while (n) { path.unshift(toWorld(n.x, n.y)); n = n.parent }
+        return path
+      }
+
+      for (const { dx, dy, c } of DIRS) {
+        const nx = cur.x + dx, ny = cur.y + dy, nk = `${nx},${ny}`
+        if (closed.has(nk) || !this.isWalkable(nx, ny)) continue
+        if (dx !== 0 && dy !== 0 && (!this.isWalkable(cur.x + dx, cur.y) || !this.isWalkable(cur.x, cur.y + dy))) continue
+        const g = cur.g + c
+        const ex = openMap.get(nk)
+        if (ex && ex.g <= g) continue
+        const nb: PathNode = { x: nx, y: ny, g, h: h(nx, ny), f: g + h(nx, ny), parent: cur }
+        if (ex) { const i = openSet.indexOf(ex); if (i >= 0) openSet.splice(i, 1) }
+        openSet.push(nb); openMap.set(nk, nb)
+      }
+    }
+    return []
+  }
+
+  nearestWalkable(tileX: number, tileY: number): { x: number; y: number } | null {
+    for (let r = 1; r <= 15; r++) {
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue
+          if (this.isWalkable(tileX + dx, tileY + dy)) return { x: tileX + dx, y: tileY + dy }
+        }
+      }
+    }
+    return null
+  }
+
   render(scene: Phaser.Scene): void {
     const totalWidth = MAP_WIDTH * TILE_SIZE
     const totalHeight = MAP_HEIGHT * TILE_SIZE
@@ -58,6 +128,7 @@ export class MapSystem {
     rt.setOrigin(0, 0)
     rt.draw(gfx, 0, 0)
     gfx.destroy()
+    rt.setDepth(0)
   }
 
   private generateMap(): GameMap {

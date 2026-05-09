@@ -33,6 +33,10 @@ export class BuildingSystem {
     return this.buildings.has(`${tileX},${tileY}`)
   }
 
+  removeBuilding(b: Building): void {
+    this.buildings.delete(`${b.tileX},${b.tileY}`)
+  }
+
   getTownHall(faction: Faction): Building | null {
     for (const b of this.buildings.values()) {
       if (b.buildingType === 'townhall' && b.faction === faction) {

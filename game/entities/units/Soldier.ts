@@ -1,0 +1,146 @@
+import * as Phaser from 'phaser'
+import { SOLDIER_CONFIGS } from '@/types/units'
+import type { SoldierType, SoldierState, Faction } from '@/types/units'
+import type { Building } from '@/game/entities/buildings/Building'
+
+export class Soldier extends Phaser.GameObjects.Container {
+  faction: Faction
+  soldierType: SoldierType
+  state: SoldierState = 'idle'
+
+  hp: number
+  maxHp: number
+  damage: number
+  attackRange: number
+  speed: number
+
+  target: Soldier | Building | null = null
+  attackTimer: number = 0
+
+  private targetX: number = 0
+  private targetY: number = 0
+  private waypoints: { x: number; y: number }[] = []
+  private onArrivedCallback?: () => void
+
+  private bodyGfx: Phaser.GameObjects.Graphics
+  private hpBarGfx: Phaser.GameObjects.Graphics
+  private selectionGfx: Phaser.GameObjects.Graphics
+
+  constructor(scene: Phaser.Scene, x: number, y: number, soldierType: SoldierType, faction: Faction) {
+    super(scene, x, y)
+    this.faction = faction
+    this.soldierType = soldierType
+
+    const cfg = SOLDIER_CONFIGS[soldierType]
+    this.hp = cfg.hp
+    this.maxHp = cfg.hp
+    this.damage = cfg.damage
+    this.attackRange = cfg.range
+    this.speed = cfg.speed
+
+    this.bodyGfx = scene.add.graphics()
+    this.hpBarGfx = scene.add.graphics()
+    this.selectionGfx = scene.add.graphics()
+
+    const color = faction === 'player' ? 0x3b82f6 : 0xef4444
+    this.bodyGfx.fillStyle(color, 1)
+    this.bodyGfx.fillCircle(0, 0, cfg.radius)
+    // inner dot to distinguish from worker
+    this.bodyGfx.fillStyle(0xffffff, 0.4)
+    this.bodyGfx.fillCircle(0, 0, 3)
+
+    this.selectionGfx.lineStyle(2, 0xffffff, 1)
+    this.selectionGfx.strokeCircle(0, 0, cfg.radius + 4)
+    this.selectionGfx.setVisible(false)
+
+    this.add(this.bodyGfx)
+    this.add(this.hpBarGfx)
+    this.add(this.selectionGfx)
+
+    scene.add.existing(this)
+    this.setDepth(3)
+
+    this.drawHpBar()
+  }
+
+  setSelected(selected: boolean): void {
+    this.selectionGfx.setVisible(selected)
+  }
+
+  setMoveTarget(x: number, y: number, onArrived?: () => void): void {
+    this.waypoints = []
+    this.targetX = x
+    this.targetY = y
+    this.state = 'moving'
+    this.onArrivedCallback = onArrived
+  }
+
+  setPath(waypoints: { x: number; y: number }[], onArrived?: () => void): void {
+    if (waypoints.length === 0) { if (onArrived) onArrived(); return }
+    this.targetX = waypoints[0].x
+    this.targetY = waypoints[0].y
+    this.waypoints = waypoints.slice(1)
+    this.state = 'moving'
+    this.onArrivedCallback = onArrived
+  }
+
+  takeDamage(amount: number): boolean {
+    this.hp = Math.max(0, this.hp - amount)
+    this.drawHpBar()
+    if (this.hp <= 0) {
+      this.state = 'dead'
+      this.destroy()
+      return true
+    }
+    return false
+  }
+
+  drawHpBar(): void {
+    const cfg = SOLDIER_CONFIGS[this.soldierType]
+    const w = cfg.radius * 2
+    const ratio = this.hp / this.maxHp
+    const barY = -(cfg.radius + 6)
+    this.hpBarGfx.clear()
+    this.hpBarGfx.fillStyle(0x000000, 0.6)
+    this.hpBarGfx.fillRect(-w / 2, barY, w, 3)
+    const barColor = ratio > 0.3 ? 0x22c55e : 0xef4444
+    this.hpBarGfx.fillStyle(barColor, 1)
+    this.hpBarGfx.fillRect(-w / 2, barY, Math.ceil(w * ratio), 3)
+  }
+
+  update(delta: number): void {
+    if (this.state === 'dead') return
+
+    if (this.state === 'moving') {
+      const dx = this.targetX - this.x
+      const dy = this.targetY - this.y
+      const dist = Math.sqrt(dx * dx + dy * dy)
+
+      if (dist < 8) {
+        if (this.waypoints.length > 0) {
+          const next = this.waypoints.shift()!
+          this.targetX = next.x
+          this.targetY = next.y
+          return
+        }
+        this.x = this.targetX
+        this.y = this.targetY
+        const cb = this.onArrivedCallback
+        this.onArrivedCallback = undefined
+        if (cb) cb()
+        else this.state = 'idle'
+        return
+      }
+
+      const speed = (this.speed * delta) / 1000
+      const ratio = Math.min(speed / dist, 1)
+      this.x += dx * ratio
+      this.y += dy * ratio
+    }
+  }
+
+  getWorldTile(): { tileX: number; tileY: number } {
+    const { TILE_SIZE } = require('@/game/constants')
+    return { tileX: Math.floor(this.x / TILE_SIZE), tileY: Math.floor(this.y / TILE_SIZE) }
+  }
+}
