@@ -6,7 +6,7 @@ const GameWrapper = dynamic(() => import('@/components/GameWrapper'), { ssr: fal
 
 export default function HomePage() {
   return (
-    <main className="w-screen h-screen overflow-hidden bg-black">
+    <main className="w-full h-full overflow-hidden bg-black">
       <GameWrapper />
     </main>
   )
