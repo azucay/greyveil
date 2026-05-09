@@ -113,6 +113,7 @@ Commit + Push → Review → Merge to main
 - Phaser hat keinen Default-Export: `import * as Phaser from 'phaser'` verwenden, nicht `import Phaser from 'phaser'`
 - `dynamic(() => ..., { ssr: false })` ist in Next.js 15 Server Components verboten — muss in einer `'use client'`-Komponente stehen
 - Phaser greift beim Modulimport auf `window` zu → `page.tsx` muss `'use client'` sein oder den Import vollständig client-seitig lazy-loaden
+- `scene.make.graphics({ add: false })` existiert in Phaser 3.90 nicht mehr — stattdessen `scene.add.graphics()` verwenden und nach RT-Draw mit `destroy()` entfernen
 
 ---
 
@@ -134,6 +135,23 @@ Commit + Push → Review → Merge to main
 - `'use client'` auf `page.tsx` ist für reine Game-Pages völlig in Ordnung — kein SEO-Nachteil
 - `import * as Phaser from 'phaser'` gibt Zugang zu `Phaser.Game`, `Phaser.Scene`, `Phaser.AUTO`, allen Types etc.
 - Next.js modifiziert `tsconfig.json` beim ersten Build automatisch (fügt `target: ES2017` hinzu) — das ist erwartetes Verhalten
+---
+
+---
+### [T002] Tile-Map Grundstruktur — 2026-05-09
+**Was ich vorher hätte wissen sollen:**
+- `scene.make.graphics()` API hat sich in Phaser 3.90 geändert — `{ add: false }` wird nicht mehr als Option akzeptiert
+- `RenderTexture.draw(gfx, 0, 0)` erwartet, dass das Graphics-Objekt in der Scene ist (via `scene.add.graphics()`)
+
+**Fallstricke:**
+- `scene.make.graphics({ add: false })` → TypeScript-Fehler `'add' does not exist in type 'Options'`
+- Fix: `scene.add.graphics()` + nach `rt.draw()` sofort `gfx.destroy()` aufrufen
+- Start-Bereiche des Spielers und der KI müssen nach der Cluster-Generierung explizit freigeräumt werden, sonst landen Wasser/Berg-Cluster darüber
+
+**Nützliche Erkenntnisse:**
+- `RenderTexture` bäckt das gesamte Tile-Grid einmalig als Textur — kein Performance-Problem auch bei 40×30 Tiles
+- Kamera-Bounds mit `this.cameras.main.setBounds()` verhindern Scrollen über Kartenrand ohne zusätzliche Logik
+- WASD + Pfeiltasten parallel via `createCursorKeys()` + `addKey()` — beide funktionieren gleichzeitig
 ---
 
 Format:
