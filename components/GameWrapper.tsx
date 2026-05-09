@@ -25,9 +25,11 @@ export default function GameWrapper() {
   }, [])
 
   return (
-    <div className="relative w-full h-full">
-      <GameCanvas />
+    <div className="flex flex-col w-full h-full">
       <ResourceHUD resources={resources} />
+      <div className="flex-1 relative overflow-hidden">
+        <GameCanvas />
+      </div>
       <GameHUD resources={resources} />
     </div>
   )

@@ -12,8 +12,8 @@ interface Props {
 
 const BUILD_BUTTONS: { type: BuildingType; label: string; costLabel: string }[] = [
   { type: 'farm', label: 'Farm', costLabel: '60W' },
-  { type: 'mine', label: 'Mine', costLabel: '80W+60S' },
-  { type: 'barracks', label: 'Barracks', costLabel: '100W+80S' },
+  { type: 'mine', label: 'Mine', costLabel: '80W 60S' },
+  { type: 'barracks', label: 'Barracks', costLabel: '100W 80S' },
 ]
 
 export default function GameHUD({ resources }: Props) {
@@ -62,22 +62,18 @@ export default function GameHUD({ resources }: Props) {
   }
 
   const panelStyle: React.CSSProperties = {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    background: 'rgba(0,0,0,0.85)',
+    background: 'rgba(0,0,0,0.9)',
     borderTop: '1px solid rgba(255,255,255,0.15)',
     color: '#e5e7eb',
     fontFamily: 'monospace',
-    fontSize: '12px',
-    padding: '6px 12px',
+    fontSize: '11px',
+    padding: '4px 8px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '4px',
+    gap: '3px',
     userSelect: 'none',
     pointerEvents: 'auto',
-    zIndex: 10,
+    flexShrink: 0,
   }
 
   const rowStyle: React.CSSProperties = {
@@ -88,7 +84,7 @@ export default function GameHUD({ resources }: Props) {
   }
 
   const btnStyle = (active: boolean, affordable: boolean = true): React.CSSProperties => ({
-    padding: '3px 8px',
+    padding: '4px 8px',
     borderRadius: '4px',
     border: `1px solid ${active ? '#60a5fa' : 'rgba(255,255,255,0.2)'}`,
     background: active ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.08)',
@@ -96,10 +92,11 @@ export default function GameHUD({ resources }: Props) {
     cursor: affordable ? 'pointer' : 'not-allowed',
     fontSize: '11px',
     fontFamily: 'monospace',
+    touchAction: 'manipulation',
   })
 
   const cancelBtnStyle: React.CSSProperties = {
-    padding: '3px 8px',
+    padding: '4px 8px',
     borderRadius: '4px',
     border: '1px solid #ef4444',
     background: 'rgba(239,68,68,0.2)',
@@ -107,6 +104,7 @@ export default function GameHUD({ resources }: Props) {
     cursor: 'pointer',
     fontSize: '11px',
     fontFamily: 'monospace',
+    touchAction: 'manipulation',
   }
 
   const progressBarStyle = (): React.CSSProperties => ({
@@ -166,7 +164,7 @@ export default function GameHUD({ resources }: Props) {
     if (selection.type === 'none') {
       return (
         <div style={{ color: '#6b7280' }}>
-          Click a unit or building to select
+          Tap a unit or building to select
         </div>
       )
     }
