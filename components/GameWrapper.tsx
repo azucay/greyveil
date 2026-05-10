@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import GameCanvas from './GameCanvas'
 import ResourceHUD from './hud/ResourceHUD'
 import GameHUD from './hud/GameHUD'
+import GameOverlay from './hud/GameOverlay'
 import { EventBus } from '@/game/EventBus'
 import type { Resources } from '@/types/resources'
 
@@ -29,6 +30,7 @@ export default function GameWrapper() {
       <ResourceHUD resources={resources} />
       <div className="flex-1 relative overflow-hidden">
         <GameCanvas />
+        <GameOverlay />
       </div>
       <GameHUD resources={resources} />
     </div>

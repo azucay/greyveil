@@ -66,6 +66,11 @@ export class UnitSystem {
       const from = worker.getWorldTile()
       const baseTileX = Math.floor(worker.baseX / TILE_SIZE)
       const baseTileY = Math.floor(worker.baseY / TILE_SIZE)
+      if (!this.buildingSystem.getBuildingAt(baseTileX, baseTileY)) {
+        worker.carryAmount = 0; worker.carryType = null
+        worker.workerState = 'idle'; worker.targetNode = null
+        return
+      }
       const path = this.mapSystem.findPath(from.tileX, from.tileY, baseTileX, baseTileY)
       if (path.length === 0) { worker.workerState = 'idle'; return }
       worker.setPath(path.map(p => ({ x: p.worldX, y: p.worldY })), 'returning', () => {
