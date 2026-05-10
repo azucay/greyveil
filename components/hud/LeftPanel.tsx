@@ -12,14 +12,6 @@ interface Props {
   resources: Resources
 }
 
-const RESOURCE_CONFIG: { key: keyof Resources; label: string; color: string }[] = [
-  { key: 'food',  label: 'Nahrung', color: '#4ade80' },
-  { key: 'wood',  label: 'Holz',    color: '#86efac' },
-  { key: 'stone', label: 'Stein',   color: '#d1d5db' },
-  { key: 'metal', label: 'Metall',  color: '#cbd5e1' },
-  { key: 'gold',  label: 'Gold',    color: '#fcd34d' },
-]
-
 const UNIT_ICONS: Record<string, string> = {
   worker: '👷', swordsman: '⚔️', archer: '🏹',
   townhall: '🏰', barracks: '🛡️', farm: '🌾', mine: '⛏️',
@@ -42,28 +34,23 @@ const BUILD_BUTTONS: { type: BuildingType; icon: string; costLabel: string }[] =
 ]
 
 export default function LeftPanel({ resources }: Props) {
-  const [selection, setSelection]   = useState<GameSelection>({ type: 'none' })
-  const [buildMode, setBuildMode]   = useState<BuildingType | null>(null)
-  const [popCount, setPopCount]     = useState(3)
-  const [popCap]                    = useState(10)
-  const [training, setTraining]     = useState<{ progress: number } | null>(null)
+  const [selection, setSelection] = useState<GameSelection>({ type: 'none' })
+  const [buildMode, setBuildMode] = useState<BuildingType | null>(null)
+  const [training, setTraining]   = useState<{ progress: number } | null>(null)
 
   useEffect(() => {
-    const onSel    = (s: GameSelection)            => setSelection(s)
-    const onBuild  = (m: BuildingType | null)      => setBuildMode(m)
-    const onTrain  = (t: { progress: number } | null) => setTraining(t)
-    const onPop    = (c: number)                   => setPopCount(c)
+    const onSel   = (s: GameSelection)               => setSelection(s)
+    const onBuild = (m: BuildingType | null)          => setBuildMode(m)
+    const onTrain = (t: { progress: number } | null) => setTraining(t)
 
     EventBus.on<GameSelection>('selection-changed', onSel)
     EventBus.on<BuildingType | null>('build-mode-changed', onBuild)
     EventBus.on<{ progress: number } | null>('training-update', onTrain)
-    EventBus.on<number>('pop-changed', onPop)
 
     return () => {
       EventBus.off<GameSelection>('selection-changed', onSel)
       EventBus.off<BuildingType | null>('build-mode-changed', onBuild)
       EventBus.off<{ progress: number } | null>('training-update', onTrain)
-      EventBus.off<number>('pop-changed', onPop)
     }
   }, [])
 
@@ -72,11 +59,11 @@ export default function LeftPanel({ resources }: Props) {
     return Object.entries(cost).every(([k, v]) => resources[k as keyof Resources] >= (v ?? 0))
   }
 
-  const btn = (active: boolean, affordable = true): React.CSSProperties => ({
+  const btn = (affordable = true): React.CSSProperties => ({
     padding: '5px 6px',
     borderRadius: '4px',
-    border: `1px solid ${active ? '#60a5fa' : affordable ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.08)'}`,
-    background: active ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.06)',
+    border: `1px solid ${affordable ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.08)'}`,
+    background: 'rgba(255,255,255,0.06)',
     color: affordable ? '#e5e7eb' : '#4b5563',
     cursor: affordable ? 'pointer' : 'not-allowed',
     fontSize: '11px',
@@ -101,7 +88,7 @@ export default function LeftPanel({ resources }: Props) {
 
   const renderSelectionInfo = () => {
     if (selection.type === 'none') {
-      return <div style={{ color: '#4b5563', fontSize: '10px', padding: '4px 0' }}>Nichts ausgewählt</div>
+      return <div style={{ color: '#4b5563', fontSize: '10px' }}>Nichts ausgewählt</div>
     }
 
     const type = selection.type
@@ -144,7 +131,7 @@ export default function LeftPanel({ resources }: Props) {
           <>
             {statRow('HP', BUILDING_CONFIGS.townhall.hp)}
             <button
-              style={btn(false, resources.wood >= 50 && training === null)}
+              style={{ ...btn(resources.wood >= 50 && training === null), marginTop: '4px' }}
               onClick={() => resources.wood >= 50 && training === null && EventBus.emit<void>('request-train-worker', undefined)}
             >
               + Arbeiter (50H)
@@ -161,16 +148,16 @@ export default function LeftPanel({ resources }: Props) {
         {type === 'barracks' && (() => {
           if (!selection.built) return <div style={{ fontSize: '10px', color: '#9ca3af' }}>Im Bau…</div>
           const t = selection.training
-          const canSword = resources.metal >= 50 && resources.food >= 20 && !t
+          const canSword  = resources.metal >= 50 && resources.food >= 20 && !t
           const canArcher = resources.wood >= 30 && resources.metal >= 30 && !t
           return (
             <>
               {statRow('HP', BUILDING_CONFIGS.barracks.hp)}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '4px' }}>
-                <button style={btn(false, canSword)} onClick={() => canSword && EventBus.emit<SoldierType>('request-train-soldier', 'swordsman')}>
+                <button style={btn(canSword)} onClick={() => canSword && EventBus.emit<SoldierType>('request-train-soldier', 'swordsman')}>
                   ⚔️ Schwert (50M 20N)
                 </button>
-                <button style={btn(false, canArcher)} onClick={() => canArcher && EventBus.emit<SoldierType>('request-train-soldier', 'archer')}>
+                <button style={btn(canArcher)} onClick={() => canArcher && EventBus.emit<SoldierType>('request-train-soldier', 'archer')}>
                   🏹 Bogner (30H 30M)
                 </button>
               </div>
@@ -217,16 +204,6 @@ export default function LeftPanel({ resources }: Props) {
       overflow: 'hidden',
     }}>
 
-      {/* Resources */}
-      <div style={{ padding: '6px', borderBottom: '1px solid rgba(255,255,255,0.1)', flexShrink: 0 }}>
-        {RESOURCE_CONFIG.map(({ key, label, color }) => (
-          <div key={key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginBottom: '2px' }}>
-            <span style={{ color: '#6b7280' }}>{label}</span>
-            <span style={{ color, fontWeight: 'bold' }}>{Math.floor(resources[key])}</span>
-          </div>
-        ))}
-      </div>
-
       {/* Selection info */}
       <div style={{ flex: 1, padding: '6px', overflowY: 'auto', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
         {renderSelectionInfo()}
@@ -234,16 +211,11 @@ export default function LeftPanel({ resources }: Props) {
 
       {/* Build menu */}
       <div style={{ padding: '6px', flexShrink: 0 }}>
-        <div style={{ fontSize: '10px', color: '#6b7280', marginBottom: '4px' }}>
-          Pop: {popCount}/{popCap}
-        </div>
         {buildMode !== null ? (
           <>
-            <div style={{ fontSize: '10px', color: '#fbbf24', marginBottom: '4px' }}>
-              Auf Karte tippen
-            </div>
+            <div style={{ fontSize: '10px', color: '#fbbf24', marginBottom: '4px' }}>Auf Karte tippen</div>
             <button
-              style={{ ...btn(false, true), background: 'rgba(239,68,68,0.2)', border: '1px solid #ef4444', color: '#fca5a5' }}
+              style={{ ...btn(true), background: 'rgba(239,68,68,0.2)', border: '1px solid #ef4444', color: '#fca5a5' }}
               onClick={() => EventBus.emit<void>('cancel-build', undefined)}
             >
               Abbrechen
@@ -256,7 +228,7 @@ export default function LeftPanel({ resources }: Props) {
               return (
                 <button
                   key={type}
-                  style={btn(false, affordable)}
+                  style={btn(affordable)}
                   onClick={() => affordable && EventBus.emit<BuildingType>('start-build', type)}
                 >
                   {icon} {UNIT_NAMES[type]}<br />
