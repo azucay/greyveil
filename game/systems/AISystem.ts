@@ -5,10 +5,9 @@ import { BuildingSystem } from '@/game/systems/BuildingSystem'
 import { UnitSystem } from '@/game/systems/UnitSystem'
 import { CombatSystem } from '@/game/systems/CombatSystem'
 import { MapSystem } from '@/game/systems/MapSystem'
+import { BUILDING_CONFIGS } from '@/types/buildings'
 import { AI_START_TILE, TILE_SIZE } from '@/game/constants'
 import type { BuildingType } from '@/types/buildings'
-
-type AIStrategy = 'gather' | 'build' | 'attack'
 
 export class AISystem {
   private scene: Phaser.Scene
@@ -18,12 +17,11 @@ export class AISystem {
   private combatSystem: CombatSystem
   private mapSystem: MapSystem
 
-  private decisionTimer: number = 0
-  private claudeTimer: number = 0
-  private strategy: AIStrategy = 'gather'
+  private decisionTimer = 0
+  private claudeTimer   = 0
 
-  private readonly DECISION_INTERVAL = 5000
-  private readonly CLAUDE_INTERVAL = 30000
+  private readonly DECISION_INTERVAL = 4000
+  private readonly CLAUDE_INTERVAL   = 30000
 
   constructor(
     scene: Phaser.Scene,
@@ -67,10 +65,15 @@ export class AISystem {
   }
 
   private makeDecision(): void {
-    const aiWorkers = this.unitSystem.workers.filter(w => w.faction === 'ai')
+    const aiWorkers   = this.unitSystem.workers.filter(w => w.faction === 'ai')
     const aiBuildings = [...this.buildingSystem.buildings.values()].filter(b => b.faction === 'ai')
-    const aiBarracks = aiBuildings.find(b => b.buildingType === 'barracks') ?? null
-    const aiSoldiers = this.combatSystem.getSoldiersOfFaction('ai')
+    const aiSoldiers  = this.combatSystem.getSoldiersOfFaction('ai')
+    const res         = this.resourceSystem
+
+    const hasFarm       = aiBuildings.some(b => b.buildingType === 'farm')
+    const hasMine       = aiBuildings.some(b => b.buildingType === 'mine')
+    const barracks      = aiBuildings.filter(b => b.buildingType === 'barracks')
+    const builtBarracks = barracks.filter(b => b.built)
 
     // Always keep idle workers gathering
     for (const worker of aiWorkers) {
@@ -80,57 +83,59 @@ export class AISystem {
       }
     }
 
-    // Strategy: gather until we have enough resources to do more
-    if (this.strategy === 'gather') {
-      if (this.resourceSystem.canAfford('ai', { wood: 100, stone: 80 })) {
-        this.strategy = 'build'
-      }
+    // Economy: farm first — food is needed for swordsman training
+    if (!hasFarm && res.canAfford('ai', { wood: 60 })) {
+      this.buildAIBuilding('farm')
       return
     }
 
-    // Strategy: build barracks if none
-    if (this.strategy === 'build') {
-      if (!aiBarracks) {
-        this.buildAIBuilding('barracks')
-        return
-      }
-      this.strategy = 'attack'
+    // Economy: mine — metal for swordsmen and archers
+    if (!hasMine && res.canAfford('ai', { wood: 80, stone: 60 })) {
+      this.buildAIBuilding('mine')
+      return
     }
 
-    // Strategy: train soldiers and attack when ready
-    if (this.strategy === 'attack') {
-      if (aiBarracks?.built) {
-        this.unitSystem.startTrainingSoldier(aiBarracks, 'swordsman', 'ai')
-      }
+    // Military: build first barracks
+    if (barracks.length === 0 && res.canAfford('ai', { wood: 100, stone: 80 })) {
+      this.buildAIBuilding('barracks')
+      return
+    }
 
-      if (aiSoldiers.length >= 3) {
-        const playerTH = this.buildingSystem.getTownHall('player')
-        if (playerTH) {
-          for (const soldier of aiSoldiers) {
-            if (soldier.state === 'idle') {
-              soldier.target = playerTH
-              soldier.state = 'attacking'
-            }
+    // Military: build second barracks once first is operational and army is forming
+    if (barracks.length === 1 && builtBarracks.length === 1 && aiSoldiers.length >= 3 &&
+        res.canAfford('ai', { wood: 100, stone: 80 })) {
+      this.buildAIBuilding('barracks')
+    }
+
+    // Military: continuously train in all built barracks
+    for (const b of builtBarracks) {
+      if (this.unitSystem.getSoldierTraining(b)) continue
+      if (res.canAfford('ai', { metal: 50, food: 20 })) {
+        this.unitSystem.startTrainingSoldier(b, 'swordsman', 'ai')
+      } else if (res.canAfford('ai', { wood: 30, metal: 30 })) {
+        this.unitSystem.startTrainingSoldier(b, 'archer', 'ai')
+      }
+    }
+
+    // Military: attack — threshold lowers if player has many soldiers
+    const playerCount     = this.combatSystem.getSoldiersOfFaction('player').length
+    const attackThreshold = playerCount >= 3 ? 3 : 5
+    if (aiSoldiers.length >= attackThreshold) {
+      const playerTH = this.buildingSystem.getTownHall('player')
+      if (playerTH) {
+        for (const soldier of aiSoldiers) {
+          if (soldier.state === 'idle') {
+            this.combatSystem.commandAttack([soldier], playerTH)
           }
         }
-      }
-
-      // If no barracks anymore (destroyed), rebuild
-      if (!aiBarracks && this.resourceSystem.canAfford('ai', { wood: 100, stone: 80 })) {
-        this.strategy = 'build'
       }
     }
   }
 
   private buildAIBuilding(type: BuildingType): void {
-    const cost: Record<BuildingType, { wood?: number; stone?: number }> = {
-      barracks: { wood: 100, stone: 80 },
-      farm: { wood: 60 },
-      mine: { wood: 80, stone: 60 },
-      townhall: { wood: 0 },
-    }
-    const cx = AI_START_TILE.x
-    const cy = AI_START_TILE.y
+    const cost = BUILDING_CONFIGS[type].cost
+    const cx   = AI_START_TILE.x
+    const cy   = AI_START_TILE.y
 
     for (let radius = 2; radius <= 8; radius++) {
       for (let dy = -radius; dy <= radius; dy++) {
@@ -144,13 +149,13 @@ export class AISystem {
           const building = new Building(this.scene, type, 'ai', tx, ty)
           this.buildingSystem.addBuilding(building, tx, ty)
 
-          const c = cost[type]
-          if (c.wood) this.resourceSystem.subtract('ai', 'wood', c.wood)
-          if (c.stone) this.resourceSystem.subtract('ai', 'stone', c.stone)
+          for (const [rType, amount] of Object.entries(cost)) {
+            if (amount) this.resourceSystem.subtract('ai', rType as keyof typeof cost, amount)
+          }
 
-          const idle = this.unitSystem.workers.find(w => w.faction === 'ai' && w.workerState === 'idle')
+          const builder = this.unitSystem.workers.find(w => w.faction === 'ai' && w.workerState === 'idle')
             ?? this.unitSystem.workers.find(w => w.faction === 'ai')
-          if (idle) this.unitSystem.commandBuild(idle, building)
+          if (builder) this.unitSystem.commandBuild(builder, building)
           return
         }
       }
@@ -159,28 +164,30 @@ export class AISystem {
 
   private async consultClaude(): Promise<void> {
     try {
-      const payload = {
-        aiSoldiers: this.combatSystem.getSoldiersOfFaction('ai').length,
-        playerSoldiers: this.combatSystem.getSoldiersOfFaction('player').length,
-        aiWorkers: this.unitSystem.workers.filter(w => w.faction === 'ai').length,
-        aiHasBarracks: [...this.buildingSystem.buildings.values()].some(b => b.faction === 'ai' && b.buildingType === 'barracks' && b.built),
-        currentStrategy: this.strategy,
-      }
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 5000)
 
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        signal: controller.signal,
+        body: JSON.stringify({
+          aiSoldiers:    this.combatSystem.getSoldiersOfFaction('ai').length,
+          playerSoldiers: this.combatSystem.getSoldiersOfFaction('player').length,
+          aiWorkers:     this.unitSystem.workers.filter(w => w.faction === 'ai').length,
+          aiBuildings:   [...this.buildingSystem.buildings.values()]
+            .filter(b => b.faction === 'ai')
+            .map(b => ({ type: b.buildingType, built: b.built })),
+        }),
       })
+      clearTimeout(timeout)
 
       if (res.ok) {
-        const data = await res.json() as { strategy?: string }
-        if (data.strategy === 'gather' || data.strategy === 'build' || data.strategy === 'attack') {
-          this.strategy = data.strategy
-        }
+        // Claude can suggest tactical adjustments — reserved for future use
+        await res.json()
       }
     } catch {
-      // silently ignore network errors
+      // Network errors / timeouts are silently ignored — rule-based AI continues
     }
   }
 }

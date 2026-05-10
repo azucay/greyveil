@@ -113,9 +113,12 @@ export class CombatSystem {
     this.soldiers = this.soldiers.filter(s => s.state !== 'dead')
   }
 
+  // Soldiers only auto-aggro enemies within this radius; commandAttack() bypasses this limit
+  private readonly AGGRO_RANGE = 5 * TILE_SIZE
+
   private findNearestEnemy(soldier: Soldier): Soldier | null {
     let best: Soldier | null = null
-    let bestDist = Infinity
+    let bestDist = this.AGGRO_RANGE * this.AGGRO_RANGE
     for (const other of this.soldiers) {
       if (other.faction === soldier.faction || other.state === 'dead') continue
       const dx = other.x - soldier.x
@@ -129,7 +132,7 @@ export class CombatSystem {
   private findNearestEnemyBuilding(soldier: Soldier, buildingSystem: BuildingSystem): Building | null {
     const enemyFaction: Faction = soldier.faction === 'player' ? 'ai' : 'player'
     let best: Building | null = null
-    let bestDist = Infinity
+    let bestDist = this.AGGRO_RANGE * this.AGGRO_RANGE
     for (const b of buildingSystem.buildings.values()) {
       if (b.faction !== enemyFaction) continue
       const dx = b.x - soldier.x
