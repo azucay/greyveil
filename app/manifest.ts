@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: 'Greyveil',
     description: 'Fantasy RTS Browser Game',
     start_url: '/',
-    display: 'standalone',
+    display: 'fullscreen',
     orientation: 'landscape',
     theme_color: '#1a1a2e',
     background_color: '#0d0d1a',
