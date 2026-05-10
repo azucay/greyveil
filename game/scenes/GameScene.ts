@@ -9,7 +9,9 @@ import { CombatSystem } from '@/game/systems/CombatSystem'
 import { AISystem } from '@/game/systems/AISystem'
 import { Building } from '@/game/entities/buildings/Building'
 import { Soldier } from '@/game/entities/units/Soldier'
+import { BUILDING_CONFIGS } from '@/types/buildings'
 import type { BuildingType } from '@/types/buildings'
+import type { ResourceType } from '@/types/resources'
 import type { GameSelection, SoldierType } from '@/types/units'
 import type { Worker } from '@/game/entities/units/Worker'
 
@@ -122,6 +124,10 @@ export class GameScene extends Phaser.Scene {
       if (walkable && !this.buildingSystem.isTileOccupied(tileX, tileY) && tile?.type !== 'water' && tile?.type !== 'mountain') {
         const building = new Building(this, this.buildMode, 'player', tileX, tileY)
         this.buildingSystem.addBuilding(building, tileX, tileY)
+        const buildCost = BUILDING_CONFIGS[this.buildMode].cost
+        for (const [rType, amount] of Object.entries(buildCost)) {
+          this.resourceSystem.subtract('player', rType as ResourceType, amount as number)
+        }
         const builder = this.selectedWorker ?? this.unitSystem.workers.find(w => w.workerState === 'idle' && w.faction === 'player') ?? null
         if (builder) this.unitSystem.commandBuild(builder, building)
         this.buildMode = null
