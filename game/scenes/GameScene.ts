@@ -46,7 +46,7 @@ export class GameScene extends Phaser.Scene {
     this.resourceSystem.placeNodes(this, this.mapSystem.getMap())
 
     this.buildingSystem = new BuildingSystem(this, this.resourceSystem)
-    this.combatSystem = new CombatSystem()
+    this.combatSystem = new CombatSystem(this.mapSystem)
 
     const th = new Building(this, 'townhall', 'player', PLAYER_START_TILE.x, PLAYER_START_TILE.y)
     this.buildingSystem.addBuilding(th, PLAYER_START_TILE.x, PLAYER_START_TILE.y)

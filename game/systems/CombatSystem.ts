@@ -1,10 +1,18 @@
+import { EventBus } from '@/game/EventBus'
 import { Soldier } from '@/game/entities/units/Soldier'
 import { BuildingSystem } from '@/game/systems/BuildingSystem'
+import { MapSystem } from '@/game/systems/MapSystem'
+import { TILE_SIZE } from '@/game/constants'
 import type { Building } from '@/game/entities/buildings/Building'
 import type { Faction } from '@/types/units'
 
 export class CombatSystem {
   soldiers: Soldier[] = []
+  private mapSystem: MapSystem
+
+  constructor(mapSystem: MapSystem) {
+    this.mapSystem = mapSystem
+  }
 
   addSoldier(soldier: Soldier): void {
     this.soldiers.push(soldier)
@@ -29,9 +37,16 @@ export class CombatSystem {
   }
 
   commandMoveSoldiers(soldiers: Soldier[], worldX: number, worldY: number): void {
+    const toTX = Math.floor(worldX / TILE_SIZE)
+    const toTY = Math.floor(worldY / TILE_SIZE)
     for (const s of soldiers) {
       s.target = null
-      s.setMoveTarget(worldX, worldY, () => { s.state = 'idle' })
+      const fromTX = Math.floor(s.x / TILE_SIZE)
+      const fromTY = Math.floor(s.y / TILE_SIZE)
+      const path = this.mapSystem.findPath(fromTX, fromTY, toTX, toTY)
+      if (path.length > 0) {
+        s.setPath(path.map(p => ({ x: p.worldX, y: p.worldY })), () => { s.state = 'idle' })
+      }
     }
   }
 
@@ -42,7 +57,6 @@ export class CombatSystem {
       soldier.update(delta)
 
       if (soldier.state === 'attacking' || soldier.state === 'idle') {
-        // Auto-find nearest enemy if no target or target is dead
         if (!soldier.target || (soldier.target instanceof Soldier && soldier.target.state === 'dead')) {
           soldier.target = this.findNearestEnemy(soldier) ?? this.findNearestEnemyBuilding(soldier, buildingSystem)
         }
@@ -68,12 +82,27 @@ export class CombatSystem {
                 if (died) {
                   buildingSystem.removeBuilding(building)
                   soldier.target = null
+                  if (building.buildingType === 'townhall') {
+                    EventBus.emit<'victory' | 'defeat'>(
+                      'game-over',
+                      building.faction === 'player' ? 'defeat' : 'victory'
+                    )
+                  }
                 }
               }
             }
           } else {
-            // Chase target — setMoveTarget so Soldier.update() handles movement without conflict
-            soldier.setMoveTarget(tx, ty)
+            // Chase with A* so soldiers don't walk through water/mountains
+            const targetTX = Math.floor(tx / TILE_SIZE)
+            const targetTY = Math.floor(ty / TILE_SIZE)
+            const fromTX = Math.floor(soldier.x / TILE_SIZE)
+            const fromTY = Math.floor(soldier.y / TILE_SIZE)
+            const path = this.mapSystem.findPath(fromTX, fromTY, targetTX, targetTY)
+            if (path.length > 0) {
+              soldier.setPath(path.map(p => ({ x: p.worldX, y: p.worldY })))
+            } else {
+              soldier.setMoveTarget(tx, ty)
+            }
           }
         } else {
           soldier.state = 'idle'
@@ -81,7 +110,6 @@ export class CombatSystem {
       }
     }
 
-    // Remove dead soldiers
     this.soldiers = this.soldiers.filter(s => s.state !== 'dead')
   }
 
