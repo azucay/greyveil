@@ -4,6 +4,8 @@ import type { Resources } from '@/types/resources'
 
 interface Props {
   resources: Resources
+  popCount: number
+  popCap: number
 }
 
 const RESOURCE_CONFIG: { key: keyof Resources; label: string; color: string; bg: string }[] = [
@@ -14,7 +16,7 @@ const RESOURCE_CONFIG: { key: keyof Resources; label: string; color: string; bg:
   { key: 'gold', label: 'G', color: '#fcd34d', bg: '#78350f' },
 ]
 
-export default function ResourceHUD({ resources }: Props) {
+export default function ResourceHUD({ resources, popCount, popCap }: Props) {
   return (
     <div
       className="flex justify-center flex-wrap gap-1 py-1 px-2 select-none pointer-events-none"
@@ -32,6 +34,15 @@ export default function ResourceHUD({ resources }: Props) {
           </span>
         </div>
       ))}
+      <div
+        className="flex items-center gap-1 px-1.5 py-0.5 rounded font-mono"
+        style={{ background: '#1c1917', border: '1px solid rgba(255,255,255,0.1)', fontSize: '11px' }}
+      >
+        <span style={{ color: '#9ca3af' }}>Pop</span>
+        <span style={{ color: '#e5e7eb', fontWeight: 'bold', minWidth: '2rem', textAlign: 'right' }}>
+          {popCount}/{popCap}
+        </span>
+      </div>
     </div>
   )
 }
