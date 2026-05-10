@@ -6,21 +6,28 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: 'Greyveil',
     description: 'Fantasy RTS Browser Game',
     start_url: '/',
-    display: 'standalone',
+    display: 'fullscreen',
     orientation: 'landscape',
     theme_color: '#1a1a2e',
     background_color: '#0d0d1a',
     icons: [
       {
-        src: '/icon.png',
+        src: '/icon-192.png',
+        sizes: '192x192',
+        type: 'image/png',
+        purpose: 'any',
+      },
+      {
+        src: '/icon-512.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'any',
+      },
+      {
+        src: '/icon-512.png',
         sizes: '512x512',
         type: 'image/png',
         purpose: 'maskable',
-      },
-      {
-        src: '/apple-icon.png',
-        sizes: '180x180',
-        type: 'image/png',
       },
     ],
   }
