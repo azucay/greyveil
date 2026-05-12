@@ -13,6 +13,7 @@ import { BUILDING_CONFIGS } from '@/types/buildings'
 import type { BuildingType } from '@/types/buildings'
 import type { ResourceType } from '@/types/resources'
 import type { GameSelection, SoldierType } from '@/types/units'
+import type { MinimapData } from '@/types/minimap'
 import type { Worker } from '@/game/entities/units/Worker'
 
 export class GameScene extends Phaser.Scene {
@@ -34,7 +35,7 @@ export class GameScene extends Phaser.Scene {
 
   private selectedWorker: Worker | null = null
   private selectedBuilding: Building | null = null
-  private selectedSoldier: Soldier | null = null
+  private selectedSoldiers: Soldier[] = []
   buildMode: BuildingType | null = null
   private selectionEmitTimer = 0
 
@@ -86,6 +87,13 @@ export class GameScene extends Phaser.Scene {
         this.unitSystem.startTrainingSoldier(this.selectedBuilding, type)
       }
     })
+    // T11: select all player soldiers
+    EventBus.on<void>('select-all-soldiers', () => {
+      this.clearSelection()
+      this.selectedSoldiers = this.combatSystem.getSoldiersOfFaction('player')
+      for (const s of this.selectedSoldiers) s.setSelected(true)
+      this.emitSoldierSelection()
+    })
 
     this.scene.launch('UIScene')
   }
@@ -100,17 +108,33 @@ export class GameScene extends Phaser.Scene {
     this.selectionEmitTimer += delta
     if (this.selectionEmitTimer >= 500) {
       this.selectionEmitTimer = 0
+
+      // T11: prune dead soldiers from selection
+      this.selectedSoldiers = this.selectedSoldiers.filter(s => s.state !== 'dead')
+
       if (this.selectedWorker) {
         EventBus.emit<GameSelection>('selection-changed', { type: 'worker', workerState: this.selectedWorker.workerState })
       } else if (this.selectedBuilding?.buildingType === 'barracks') {
         const training = this.unitSystem.getSoldierTraining(this.selectedBuilding)
         EventBus.emit<GameSelection>('selection-changed', { type: 'barracks', built: this.selectedBuilding.built, training })
-      } else if (this.selectedSoldier && this.selectedSoldier.state !== 'dead') {
-        EventBus.emit<GameSelection>('selection-changed', {
-          type: 'soldier', soldierType: this.selectedSoldier.soldierType,
-          hp: this.selectedSoldier.hp, maxHp: this.selectedSoldier.maxHp,
-        })
+      } else if (this.selectedSoldiers.length > 0) {
+        this.emitSoldierSelection()
       }
+
+      // T14: minimap update
+      const cam = this.cameras.main
+      EventBus.emit<MinimapData>('minimap-update', {
+        buildings: [...this.buildingSystem.buildings.values()].map(b => ({ wx: b.x, wy: b.y, faction: b.faction })),
+        soldiers: this.combatSystem.soldiers.filter(s => s.state !== 'dead').map(s => ({ wx: s.x, wy: s.y, faction: s.faction })),
+        cameraX: cam.scrollX, cameraY: cam.scrollY,
+        cameraW: cam.width, cameraH: cam.height,
+        mapW: MAP_WIDTH * TILE_SIZE, mapH: MAP_HEIGHT * TILE_SIZE,
+      })
+
+      // T16: pop-cap update
+      EventBus.emit<{ count: number; cap: number }>('pop-update', {
+        count: this.unitSystem.popCount, cap: this.unitSystem.popCap,
+      })
     }
   }
 
@@ -142,17 +166,16 @@ export class GameScene extends Phaser.Scene {
 
     const tapSoldier = this.combatSystem.getSoldierAt(worldX, worldY)
     if (tapSoldier) {
-      if (tapSoldier.faction === 'ai' && this.selectedSoldier?.faction === 'player') {
-        this.combatSystem.commandAttack([this.selectedSoldier], tapSoldier)
+      const playerSoldiers = this.selectedSoldiers.filter(s => s.faction === 'player')
+      if (tapSoldier.faction === 'ai' && playerSoldiers.length > 0) {
+        this.combatSystem.commandAttack(playerSoldiers, tapSoldier)
         return
       }
       if (tapSoldier.faction === 'player') {
         this.clearSelection()
-        this.selectedSoldier = tapSoldier
+        this.selectedSoldiers = [tapSoldier]
         tapSoldier.setSelected(true)
-        EventBus.emit<GameSelection>('selection-changed', {
-          type: 'soldier', soldierType: tapSoldier.soldierType, hp: tapSoldier.hp, maxHp: tapSoldier.maxHp,
-        })
+        this.emitSoldierSelection()
         return
       }
     }
@@ -168,8 +191,9 @@ export class GameScene extends Phaser.Scene {
 
     const building = this.buildingSystem.getBuildingAt(tileX, tileY)
     if (building) {
-      if (building.faction === 'ai' && this.selectedSoldier?.faction === 'player') {
-        this.combatSystem.commandAttack([this.selectedSoldier], building)
+      const playerSoldiers = this.selectedSoldiers.filter(s => s.faction === 'player')
+      if (building.faction === 'ai' && playerSoldiers.length > 0) {
+        this.combatSystem.commandAttack(playerSoldiers, building)
         return
       }
       if (building.faction === 'player') {
@@ -192,12 +216,28 @@ export class GameScene extends Phaser.Scene {
       return
     }
 
-    if (this.selectedSoldier?.faction === 'player') {
-      this.combatSystem.commandMoveSoldiers([this.selectedSoldier], worldX, worldY)
+    const playerSoldiers = this.selectedSoldiers.filter(s => s.faction === 'player')
+    if (playerSoldiers.length > 0) {
+      this.combatSystem.commandMoveSoldiers(playerSoldiers, worldX, worldY)
       return
     }
 
     this.clearSelection()
+  }
+
+  private emitSoldierSelection(): void {
+    const alive = this.selectedSoldiers.filter(s => s.state !== 'dead')
+    this.selectedSoldiers = alive
+    if (alive.length === 0) {
+      EventBus.emit<GameSelection>('selection-changed', { type: 'none' })
+    } else if (alive.length === 1) {
+      const s = alive[0]
+      EventBus.emit<GameSelection>('selection-changed', { type: 'soldier', soldierType: s.soldierType, hp: s.hp, maxHp: s.maxHp })
+    } else {
+      const totalHp = alive.reduce((sum, s) => sum + s.hp, 0)
+      const maxTotalHp = alive.reduce((sum, s) => sum + s.maxHp, 0)
+      EventBus.emit<GameSelection>('selection-changed', { type: 'army', count: alive.length, totalHp, maxTotalHp })
+    }
   }
 
   private emitBuildingSelection(building: Building): void {
@@ -217,7 +257,8 @@ export class GameScene extends Phaser.Scene {
   private clearSelection(): void {
     if (this.selectedWorker) { this.selectedWorker.setSelected(false); this.selectedWorker = null }
     if (this.selectedBuilding) { this.selectedBuilding.setSelected(false); this.selectedBuilding = null }
-    if (this.selectedSoldier) { this.selectedSoldier.setSelected(false); this.selectedSoldier = null }
+    for (const s of this.selectedSoldiers) s.setSelected(false)
+    this.selectedSoldiers = []
     EventBus.emit<GameSelection>('selection-changed', { type: 'none' })
   }
 

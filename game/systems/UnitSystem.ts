@@ -13,6 +13,7 @@ import type { Building } from '@/game/entities/buildings/Building'
 import type { Faction, SoldierType } from '@/types/units'
 
 const WORKER_TRAIN_TIME = 10000
+const STUCK_TIMEOUT     = 3000
 
 export class UnitSystem {
   private scene: Phaser.Scene
@@ -43,9 +44,10 @@ export class UnitSystem {
 
   spawnWorker(x: number, y: number, baseX: number, baseY: number, faction: Faction = 'player'): void {
     const w = new Worker(this.scene, x, y, baseX, baseY, faction)
+    w.lastCheckedX = x
+    w.lastCheckedY = y
     this.workers.push(w)
     this.gatherAccum.set(w, 0)
-    if (faction === 'player') EventBus.emit<number>('pop-changed', this.popCount)
   }
 
   commandGather(worker: Worker, node: ResourceNode): void {
@@ -109,17 +111,21 @@ export class UnitSystem {
     })
   }
 
+  // T16: enforces pop cap before training
   startTraining(townHall: Building): void {
     if (this.trainingTimer !== null) return
+    if (this.popCount >= this.popCap) return
     if (!this.resourceSystem.canAfford('player', { wood: 50 })) return
     this.resourceSystem.subtract('player', 'wood', 50)
     this.trainingTimer = 0
     EventBus.emit<{ progress: number } | null>('training-update', { progress: 0 })
   }
 
+  // T16: enforces pop cap for player soldiers
   startTrainingSoldier(barracks: Building, type: SoldierType, faction: Faction = 'player'): void {
     const key = `${barracks.tileX},${barracks.tileY}`
     if (this.soldierTraining.has(key)) return
+    if (faction === 'player' && this.popCount >= this.popCap) return
     const cfg = SOLDIER_CONFIGS[type]
     if (!this.resourceSystem.canAfford(faction, cfg.cost)) return
     for (const [rType, amount] of Object.entries(cfg.cost)) {
@@ -161,10 +167,36 @@ export class UnitSystem {
   update(delta: number): void {
     for (const worker of this.workers) {
       worker.update(delta)
+
       if (worker.workerState === 'gathering') this.gatherTick(worker, delta)
       if (worker.workerState === 'building' && worker.targetBuilding) {
         worker.targetBuilding.tick(delta)
         if (worker.targetBuilding.built) { worker.workerState = 'idle'; worker.targetBuilding = null }
+      }
+
+      // T17: stuck detection — if worker is supposed to move but hasn't, reset to idle
+      const isMoving = worker.workerState === 'moving' || worker.workerState === 'moving_to_build' || worker.workerState === 'returning'
+      if (isMoving) {
+        const moved = Math.abs(worker.x - worker.lastCheckedX) + Math.abs(worker.y - worker.lastCheckedY)
+        if (moved > 3) {
+          worker.stuckTimer = 0
+          worker.lastCheckedX = worker.x
+          worker.lastCheckedY = worker.y
+        } else {
+          worker.stuckTimer += delta
+          if (worker.stuckTimer >= STUCK_TIMEOUT) {
+            worker.workerState = 'idle'
+            worker.targetNode = null
+            worker.targetBuilding = null
+            worker.stuckTimer = 0
+            worker.lastCheckedX = worker.x
+            worker.lastCheckedY = worker.y
+          }
+        }
+      } else {
+        worker.stuckTimer = 0
+        worker.lastCheckedX = worker.x
+        worker.lastCheckedY = worker.y
       }
     }
 
@@ -204,7 +236,14 @@ export class UnitSystem {
     return null
   }
 
-  get popCount(): number { return this.workers.filter(w => w.faction === 'player').length }
+  // T16: includes soldiers in pop count
+  get popCount(): number {
+    const workers = this.workers.filter(w => w.faction === 'player').length
+    const soldiers = this.combatSystem.getSoldiersOfFaction('player').length
+    return workers + soldiers
+  }
+
+  // T16: farms extend cap by 10 each
   get popCap(): number { return 10 + this.buildingSystem.getBuiltCount('farm', 'player') * 10 }
 }
 
