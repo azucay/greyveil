@@ -50,7 +50,37 @@ export class CombatSystem {
     }
   }
 
+  // T18: push overlapping soldiers apart
+  private readonly SEPARATION_DIST = 18
+  private readonly SEPARATION_STRENGTH = 30
+
+  private applySeparation(delta: number): void {
+    const dt = delta / 1000
+    const living = this.soldiers.filter(s => s.state !== 'dead')
+    for (let i = 0; i < living.length; i++) {
+      const a = living[i]
+      let fx = 0, fy = 0
+      for (let j = 0; j < living.length; j++) {
+        if (i === j) continue
+        const b = living[j]
+        const dx = a.x - b.x
+        const dy = a.y - b.y
+        const distSq = dx * dx + dy * dy
+        if (distSq > 0 && distSq < this.SEPARATION_DIST * this.SEPARATION_DIST) {
+          const dist = Math.sqrt(distSq)
+          const strength = this.SEPARATION_STRENGTH * (1 - dist / this.SEPARATION_DIST)
+          fx += (dx / dist) * strength
+          fy += (dy / dist) * strength
+        }
+      }
+      a.x += fx * dt
+      a.y += fy * dt
+    }
+  }
+
   update(delta: number, buildingSystem: BuildingSystem): void {
+    this.applySeparation(delta)
+
     for (const soldier of this.soldiers) {
       if (soldier.state === 'dead') continue
 

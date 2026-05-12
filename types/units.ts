@@ -10,6 +10,7 @@ export type GameSelection =
   | { type: 'none' }
   | { type: 'worker'; workerState: WorkerState }
   | { type: 'soldier'; soldierType: SoldierType; hp: number; maxHp: number }
+  | { type: 'army'; count: number; totalHp: number; maxTotalHp: number }
   | { type: 'townhall'; training: { progress: number } | null }
   | { type: 'barracks'; built: boolean; training: { soldierType: SoldierType; progress: number } | null }
   | { type: 'farm'; built: boolean }

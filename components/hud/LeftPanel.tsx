@@ -92,8 +92,12 @@ export default function LeftPanel({ resources }: Props) {
     }
 
     const type = selection.type
-    const icon = UNIT_ICONS[type === 'soldier' ? selection.soldierType : type] ?? '❓'
-    const name = UNIT_NAMES[type === 'soldier' ? selection.soldierType : type] ?? type
+    const icon = type === 'soldier' ? (UNIT_ICONS[selection.soldierType] ?? '⚔️')
+               : type === 'army'   ? '⚔️'
+               : (UNIT_ICONS[type] ?? '❓')
+    const name = type === 'soldier' ? (UNIT_NAMES[selection.soldierType] ?? selection.soldierType)
+               : type === 'army'   ? 'Armee'
+               : (UNIT_NAMES[type] ?? type)
 
     return (
       <div>
@@ -109,6 +113,20 @@ export default function LeftPanel({ resources }: Props) {
             {statRow('Geschw.', '60')}
           </>
         )}
+
+        {type === 'army' && (() => {
+          const ratio = selection.totalHp / selection.maxTotalHp
+          const barColor = ratio > 0.5 ? '#22c55e' : ratio > 0.25 ? '#f59e0b' : '#ef4444'
+          return (
+            <>
+              {statRow('Einheiten', selection.count)}
+              <div style={{ fontSize: '10px', color: '#9ca3af', marginBottom: '2px' }}>
+                HP {selection.totalHp}/{selection.maxTotalHp}
+              </div>
+              {progressBar(ratio, barColor)}
+            </>
+          )
+        })()}
 
         {type === 'soldier' && (() => {
           const cfg = SOLDIER_CONFIGS[selection.soldierType]
@@ -207,6 +225,16 @@ export default function LeftPanel({ resources }: Props) {
       {/* Selection info */}
       <div style={{ flex: 1, padding: '6px', overflowY: 'auto', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
         {renderSelectionInfo()}
+      </div>
+
+      {/* T11: select all soldiers */}
+      <div style={{ padding: '4px 6px', borderBottom: '1px solid rgba(255,255,255,0.1)', flexShrink: 0 }}>
+        <button
+          style={{ ...btn(true), fontSize: '10px', textAlign: 'center' as const }}
+          onClick={() => EventBus.emit<void>('select-all-soldiers', undefined)}
+        >
+          Alle auswählen
+        </button>
       </div>
 
       {/* Build menu */}

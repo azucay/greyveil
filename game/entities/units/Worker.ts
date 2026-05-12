@@ -17,6 +17,10 @@ export class Worker extends Phaser.GameObjects.Container {
   baseX: number
   baseY: number
 
+  stuckTimer = 0
+  lastCheckedX = 0
+  lastCheckedY = 0
+
   private onArrivedCallback: (() => void) | undefined
   private waypoints: { x: number; y: number }[] = []
   private bodyGfx: Phaser.GameObjects.Graphics
