@@ -51,8 +51,8 @@ export class CombatSystem {
   }
 
   // T18: push overlapping soldiers apart
-  private readonly SEPARATION_DIST = 18
-  private readonly SEPARATION_STRENGTH = 30
+  private readonly SEPARATION_DIST = 28
+  private readonly SEPARATION_STRENGTH = 45
 
   private applySeparation(delta: number): void {
     const dt = delta / 1000
