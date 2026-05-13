@@ -14,6 +14,11 @@
 | T010 | PWA Setup | Phase 3 | 🔲 Open |
 | T022 | Einheiten visuell unterscheidbar machen | Polish/MVP | ✅ Done |
 | T023 | Gebäude-Labels besser lesbar machen | Polish/MVP | ✅ Done |
+| T024 | Feindliche Gebäude-Schadenszustände sichtbar machen | Polish/MVP | 🔲 Open |
+| T025 | Gebäude-Labels visuell aufwerten | Polish/MVP | 🔲 Open |
+| T026 | Ressourcenanzeige auf einheitliche Symbole umstellen | Polish/MVP | 🔲 Open |
+| T027 | Baufortschritt direkt über Gebäude anzeigen | Polish/MVP | 🔲 Open |
+| T028 | Gebäudeplatzierung mit Preview und HUD-Bestätigung | Polish/MVP | 🔲 Open |
 
 ---
 
