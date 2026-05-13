@@ -277,6 +277,21 @@ Commit + Push → Review → Merge to main
 - `@anthropic-ai/sdk` war bereits im package.json — kein separates `npm install` nötig
 ---
 
+---
+### [T022/T023] Einheit-/Label-Lesbarkeit — 2026-05-13
+**Was ich vorher hätte wissen sollen:**
+- Auch mit geometrischen Placeholdern kann man Einheitentypen klar machen: Schwertkämpfer als Kreis mit Schwert, Bogenschützen als Dreieck mit Bogen.
+- Gebäude-Labels brauchen für Mobile/Zoom eher 14px, fetten Text, Stroke und leichten Hintergrund statt nur kleiner 10px-Schrift.
+
+**Fallstricke:**
+- Beim Gebäude-Angriff darf die Pfadfindung nicht zum Gebäudezentrum laufen, sonst stehen Einheiten optisch auf dem Gebäude.
+- Für Gebäudekampf einen Angriffspunkt außerhalb der Gebäude-Rect berechnen und dorthin bewegen.
+
+**Nützliche Erkenntnisse:**
+- Kleine Phaser-Tweens auf der Einheit reichen als klares Angriffsfeedback.
+- Bogenschützen-Projektile lassen sich ohne Assets als kurzlebige Graphics mit Tween darstellen.
+---
+
 Format:
 ```
 ---

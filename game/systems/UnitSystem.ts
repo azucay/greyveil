@@ -125,7 +125,7 @@ export class UnitSystem {
   startTrainingSoldier(barracks: Building, type: SoldierType, faction: Faction = 'player'): void {
     const key = `${barracks.tileX},${barracks.tileY}`
     if (this.soldierTraining.has(key)) return
-    if (faction === 'player' && this.popCount >= this.popCap) return
+    if (this.getPopCount(faction) >= this.getPopCap(faction)) return
     const cfg = SOLDIER_CONFIGS[type]
     if (!this.resourceSystem.canAfford(faction, cfg.cost)) return
     for (const [rType, amount] of Object.entries(cfg.cost)) {
@@ -238,13 +238,21 @@ export class UnitSystem {
 
   // T16: includes soldiers in pop count
   get popCount(): number {
-    const workers = this.workers.filter(w => w.faction === 'player').length
-    const soldiers = this.combatSystem.getSoldiersOfFaction('player').length
-    return workers + soldiers
+    return this.getPopCount('player')
   }
 
   // T16: farms extend cap by 10 each
-  get popCap(): number { return 10 + this.buildingSystem.getBuiltCount('farm', 'player') * 10 }
+  get popCap(): number { return this.getPopCap('player') }
+
+  getPopCount(faction: Faction): number {
+    const workers = this.workers.filter(w => w.faction === faction).length
+    const soldiers = this.combatSystem.getSoldiersOfFaction(faction).length
+    return workers + soldiers
+  }
+
+  getPopCap(faction: Faction): number {
+    return 10 + this.buildingSystem.getBuiltCount('farm', faction) * 10
+  }
 }
 
 interface WorkerWithGatherCb extends Worker {

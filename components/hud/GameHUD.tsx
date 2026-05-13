@@ -20,7 +20,7 @@ export default function GameHUD({ resources }: Props) {
   const [selection, setSelection] = useState<GameSelection>({ type: 'none' })
   const [buildMode, setBuildMode] = useState<BuildingType | null>(null)
   const [popCount, setPopCount] = useState<number>(3)
-  const [popCap] = useState<number>(10)
+  const [popCap, setPopCap] = useState<number>(10)
   const [training, setTraining] = useState<{ progress: number } | null>(null)
 
   useEffect(() => {
@@ -28,17 +28,23 @@ export default function GameHUD({ resources }: Props) {
     const onBuildModeChanged = (mode: BuildingType | null) => setBuildMode(mode)
     const onTrainingUpdate = (t: { progress: number } | null) => setTraining(t)
     const onPopChanged = (count: number) => setPopCount(count)
+    const onPopUpdate = ({ count, cap }: { count: number; cap: number }) => {
+      setPopCount(count)
+      setPopCap(cap)
+    }
 
     EventBus.on<GameSelection>('selection-changed', onSelectionChanged)
     EventBus.on<BuildingType | null>('build-mode-changed', onBuildModeChanged)
     EventBus.on<{ progress: number } | null>('training-update', onTrainingUpdate)
     EventBus.on<number>('pop-changed', onPopChanged)
+    EventBus.on<{ count: number; cap: number }>('pop-update', onPopUpdate)
 
     return () => {
       EventBus.off<GameSelection>('selection-changed', onSelectionChanged)
       EventBus.off<BuildingType | null>('build-mode-changed', onBuildModeChanged)
       EventBus.off<{ progress: number } | null>('training-update', onTrainingUpdate)
       EventBus.off<number>('pop-changed', onPopChanged)
+      EventBus.off<{ count: number; cap: number }>('pop-update', onPopUpdate)
     }
   }, [])
 
