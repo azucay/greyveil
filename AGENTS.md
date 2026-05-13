@@ -292,6 +292,22 @@ Commit + Push → Review → Merge to main
 - Bogenschützen-Projektile lassen sich ohne Assets als kurzlebige Graphics mit Tween darstellen.
 ---
 
+---
+### [T024–T028] Gebäude-Polish und sichere Bauplatzierung — 2026-05-13
+**Was ich vorher hätte wissen sollen:**
+- Building-Feedback gehört direkt in den Phaser-Container: HP-/Schadensbalken, Risse, Baufortschritt und Label-Hintergrund bleiben so an Zoom/Kamera gekoppelt.
+- Bauplatzierung braucht zwei Zustände: `buildMode` für gewähltes Gebäude und `buildPreview` für konkrete, noch nicht bestätigte Position.
+
+**Fallstricke:**
+- Beim ersten Tap im Baumodus darf noch kein Gebäude erzeugt und keine Ressource abgezogen werden; erst das HUD-Confirm-Event darf `Building` erstellen.
+- Vorschau-Grafiken müssen beim Abbrechen/Bestätigen zerstört werden, sonst bleiben Phantom-Overlays auf der Karte.
+- Ressourcen-Kürzel sollten zentral aus `types/resources.ts` kommen, damit HUD, Kosten und Produktionsanzeigen nicht wieder auseinanderlaufen.
+
+**Nützliche Erkenntnisse:**
+- `build-preview-changed` als Event hält React-HUD und Phaser-Preview sauber entkoppelt.
+- Ungültige Platzierungen können dieselbe Preview nutzen, aber mit roter Farbe und deaktiviertem Häkchen.
+---
+
 Format:
 ```
 ---

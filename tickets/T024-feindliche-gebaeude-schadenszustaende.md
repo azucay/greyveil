@@ -1,6 +1,6 @@
 # T024: Feindliche Gebäude-Schadenszustände sichtbar machen
 
-Status: 🔲 Open  
+Status: ✅ Done
 GitHub: https://github.com/azucay/greyveil/issues/24
 
 ## Problem
@@ -17,3 +17,7 @@ Gebäude-Schaden auch bei Gegnergebäuden während des Kampfes klar lesbar mache
 ## Akzeptanzkriterien
 - Ein angegriffenes feindliches Gebäude zeigt seinen Schadenszustand sichtbar an.
 - Voll beschädigte/nahe zerstörte Gebäude unterscheiden sich klar von intakten Gebäuden.
+
+## Umsetzung
+- HP-Balken und Riss-Overlays werden direkt am beschädigten Gebäude gezeichnet.
+- Indikator erscheint auch bei feindlichen Gebäuden ohne Auswahl.

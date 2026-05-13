@@ -1,6 +1,6 @@
 # T026: Ressourcenanzeige auf einheitliche Symbole umstellen
 
-Status: 🔲 Open  
+Status: ✅ Done
 GitHub: https://github.com/azucay/greyveil/issues/26
 
 ## Problem
@@ -17,3 +17,7 @@ Ressourcen einheitlich mit Symbolen statt Sprach-Abkürzungen anzeigen.
 ## Akzeptanzkriterien
 - Ressourcenanzeigen verwenden überall dieselben Symbole.
 - Keine gemischten deutschen/englischen Kürzel bleiben sichtbar.
+
+## Umsetzung
+- Ressourcen verwenden zentrale Symbole: 🪵, 🪨, 🌾, ⚙️, 🪙.
+- HUD-, Bau-, Trainings- und Produktionsanzeigen wurden von Buchstabenkürzeln auf Symbole umgestellt.

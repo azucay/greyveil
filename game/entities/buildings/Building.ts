@@ -17,6 +17,8 @@ export class Building extends Phaser.GameObjects.Container {
   private bodyGfx: Phaser.GameObjects.Graphics
   private selectionGfx: Phaser.GameObjects.Graphics
   private progressGfx: Phaser.GameObjects.Graphics
+  private damageGfx: Phaser.GameObjects.Graphics
+  private labelBgGfx: Phaser.GameObjects.Graphics
   private labelText: Phaser.GameObjects.Text
 
   constructor(
@@ -44,28 +46,32 @@ export class Building extends Phaser.GameObjects.Container {
     this.bodyGfx = scene.add.graphics()
     this.selectionGfx = scene.add.graphics()
     this.progressGfx = scene.add.graphics()
+    this.damageGfx = scene.add.graphics()
+    this.labelBgGfx = scene.add.graphics()
 
     const labelNames: Record<BuildingType, string> = {
-      townhall: 'Town Hall', barracks: 'Barracks', farm: 'Farm', mine: 'Mine',
+      townhall: 'Rathaus', barracks: 'Kaserne', farm: 'Farm', mine: 'Mine',
     }
     const hh = config.height / 2
-    this.labelText = scene.add.text(0, hh + 5, labelNames[buildingType], {
-      fontSize: '14px', color: '#ffffff', fontFamily: 'monospace',
+    this.labelText = scene.add.text(0, hh + 9, labelNames[buildingType], {
+      fontSize: '12px', color: '#f8fafc', fontFamily: 'monospace',
       fontStyle: 'bold',
-      stroke: '#000000', strokeThickness: 5,
-      backgroundColor: 'rgba(0,0,0,0.45)',
-      padding: { x: 4, y: 2 },
+      stroke: '#020617', strokeThickness: 3,
+      padding: { x: 3, y: 1 },
     }).setOrigin(0.5, 0)
 
     this.add(this.bodyGfx)
+    this.add(this.damageGfx)
     this.add(this.selectionGfx)
     this.add(this.progressGfx)
+    this.add(this.labelBgGfx)
     this.add(this.labelText)
 
     scene.add.existing(this)
     this.setDepth(1)
 
     this.drawBody()
+    this.drawLabel()
   }
 
   private drawBody(): void {
@@ -84,11 +90,66 @@ export class Building extends Phaser.GameObjects.Container {
 
     // Fill
     this.bodyGfx.fillStyle(color, alpha)
-    this.bodyGfx.fillRect(-hw, -hh, width, height)
+    this.bodyGfx.fillRoundedRect(-hw, -hh, width, height, 4)
+
+    // Subtle faction header stripe
+    this.bodyGfx.fillStyle(this.faction === 'player' ? 0x60a5fa : 0xfca5a5, alpha * 0.55)
+    this.bodyGfx.fillRoundedRect(-hw + 3, -hh + 3, width - 6, 5, 3)
 
     // Border
-    this.bodyGfx.lineStyle(2, 0xffffff, alpha * 0.5)
-    this.bodyGfx.strokeRect(-hw, -hh, width, height)
+    this.bodyGfx.lineStyle(2, this.faction === 'player' ? 0xbfdbfe : 0xfecaca, alpha * 0.7)
+    this.bodyGfx.strokeRoundedRect(-hw, -hh, width, height, 4)
+
+    this.drawDamageState()
+  }
+
+  private drawLabel(): void {
+    const bounds = this.labelText.getBounds()
+    const localX = this.labelText.x - this.labelText.displayOriginX
+    const localY = this.labelText.y - this.labelText.displayOriginY
+    const padX = 5
+    const padY = 2
+
+    this.labelBgGfx.clear()
+    this.labelBgGfx.fillStyle(this.faction === 'player' ? 0x0f172a : 0x450a0a, 0.82)
+    this.labelBgGfx.fillRoundedRect(localX - padX, localY - padY, bounds.width + padX * 2, bounds.height + padY * 2, 6)
+    this.labelBgGfx.lineStyle(1, this.faction === 'player' ? 0x60a5fa : 0xf87171, 0.65)
+    this.labelBgGfx.strokeRoundedRect(localX - padX, localY - padY, bounds.width + padX * 2, bounds.height + padY * 2, 6)
+  }
+
+  private drawDamageState(): void {
+    const config = BUILDING_CONFIGS[this.buildingType]
+    const ratio = this.hp / this.maxHp
+    const hw = config.width / 2
+    const hh = config.height / 2
+    const barWidth = config.width
+    const barY = -hh - 15
+
+    this.damageGfx.clear()
+    if (ratio >= 0.98 || !this.built) return
+
+    const barColor = ratio > 0.5 ? 0x22c55e : ratio > 0.25 ? 0xf59e0b : 0xef4444
+    this.damageGfx.fillStyle(0x020617, 0.82)
+    this.damageGfx.fillRoundedRect(-hw, barY, barWidth, 5, 3)
+    this.damageGfx.fillStyle(barColor, 1)
+    this.damageGfx.fillRoundedRect(-hw, barY, Math.max(3, Math.floor(barWidth * ratio)), 5, 3)
+
+    const crackColor = ratio > 0.45 ? 0x7f1d1d : 0xfef2f2
+    this.damageGfx.lineStyle(2, crackColor, ratio > 0.45 ? 0.55 : 0.9)
+    this.damageGfx.beginPath()
+    this.damageGfx.moveTo(-hw + config.width * 0.25, -hh + 7)
+    this.damageGfx.lineTo(-hw + config.width * 0.38, -hh + config.height * 0.36)
+    this.damageGfx.lineTo(-hw + config.width * 0.31, -hh + config.height * 0.62)
+    this.damageGfx.strokePath()
+
+    if (ratio <= 0.5) {
+      this.damageGfx.lineStyle(2, crackColor, 0.85)
+      this.damageGfx.beginPath()
+      this.damageGfx.moveTo(hw - config.width * 0.22, -hh + 9)
+      this.damageGfx.lineTo(hw - config.width * 0.42, -hh + config.height * 0.42)
+      this.damageGfx.lineTo(hw - config.width * 0.28, hh - 8)
+      this.damageGfx.strokePath()
+    }
   }
 
   tick(delta: number): void {
@@ -115,12 +176,13 @@ export class Building extends Phaser.GameObjects.Container {
     this.selectionGfx.clear()
     if (selected) {
       this.selectionGfx.lineStyle(2, 0xffffff, 1)
-      this.selectionGfx.strokeRect(-hw - 3, -hh - 3, width + 6, height + 6)
+      this.selectionGfx.strokeRoundedRect(-hw - 3, -hh - 3, width + 6, height + 6, 5)
     }
   }
 
   takeDamage(amount: number): boolean {
     this.hp = Math.max(0, this.hp - amount)
+    this.drawDamageState()
     if (this.hp <= 0) {
       this.destroy()
       return true
@@ -131,19 +193,27 @@ export class Building extends Phaser.GameObjects.Container {
   drawProgressBar(): void {
     const config = BUILDING_CONFIGS[this.buildingType]
     const barWidth = config.width
-    const barHeight = 4
+    const barHeight = 5
     const hw = config.width / 2
     const hh = config.height / 2
-    const barY = hh + 6
+    const barY = -hh - 9
+    const labelY = barY - 9
+    const percent = Math.round(this.buildProgress * 100)
 
     this.progressGfx.clear()
 
     // Background
-    this.progressGfx.fillStyle(0x000000, 0.7)
-    this.progressGfx.fillRect(-hw, barY, barWidth, barHeight)
+    this.progressGfx.fillStyle(0x020617, 0.85)
+    this.progressGfx.fillRoundedRect(-hw, barY, barWidth, barHeight, 3)
 
     // Fill
     this.progressGfx.fillStyle(0x22c55e, 1)
-    this.progressGfx.fillRect(-hw, barY, Math.floor(barWidth * this.buildProgress), barHeight)
+    this.progressGfx.fillRoundedRect(-hw, barY, Math.max(3, Math.floor(barWidth * this.buildProgress)), barHeight, 3)
+
+    this.progressGfx.fillStyle(0x020617, 0.7)
+    this.progressGfx.fillRoundedRect(-16, labelY, 32, 8, 4)
+    this.progressGfx.fillStyle(0xe5e7eb, 1)
+    this.progressGfx.fillRect(-12, labelY + 3, Math.max(1, Math.floor(24 * this.buildProgress)), 2)
+    void percent
   }
 }

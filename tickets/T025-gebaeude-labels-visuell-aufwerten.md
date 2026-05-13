@@ -1,6 +1,6 @@
 # T025: Gebäude-Labels visuell aufwerten
 
-Status: 🔲 Open  
+Status: ✅ Done
 GitHub: https://github.com/azucay/greyveil/issues/25
 
 ## Problem
@@ -17,3 +17,7 @@ Gebäude-Labels hochwertiger und lesbarer gestalten.
 ## Akzeptanzkriterien
 - Gebäude-Labels wirken polierter als reine Textmarker.
 - Labels bleiben auf kleinen Displays lesbar.
+
+## Umsetzung
+- Gebäude-Labels sind lokalisiert und sitzen in einer kompakten, abgerundeten Faction-Pill.
+- Gebäudekörper erhielten dezente Rundungen, Border und Faction-Stripe.

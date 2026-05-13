@@ -5,15 +5,16 @@ import { EventBus } from '@/game/EventBus'
 import type { GameSelection, SoldierType } from '@/types/units'
 import type { BuildingType } from '@/types/buildings'
 import type { Resources } from '@/types/resources'
+import { RESOURCE_SYMBOLS } from '@/types/resources'
 
 interface Props {
   resources: Resources
 }
 
 const BUILD_BUTTONS: { type: BuildingType; label: string; costLabel: string }[] = [
-  { type: 'farm', label: 'Farm', costLabel: '60W' },
-  { type: 'mine', label: 'Mine', costLabel: '80W 60S' },
-  { type: 'barracks', label: 'Barracks', costLabel: '100W 80S' },
+  { type: 'farm', label: 'Farm', costLabel: '🪵60' },
+  { type: 'mine', label: 'Mine', costLabel: '🪵80 🪨60' },
+  { type: 'barracks', label: 'Barracks', costLabel: '🪵100 🪨80' },
 ]
 
 export default function GameHUD({ resources }: Props) {
@@ -219,7 +220,7 @@ export default function GameHUD({ resources }: Props) {
             onClick={handleTrainWorker}
             disabled={resources.wood < 50 || training !== null}
           >
-            Train Worker (50W)
+            Train Worker ({RESOURCE_SYMBOLS.wood}50)
           </button>
           {training !== null && (
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -260,14 +261,14 @@ export default function GameHUD({ resources }: Props) {
             onClick={() => canSword && handleTrainSoldier('swordsman')}
             disabled={!canSword}
           >
-            Sword (50M 20F)
+            Sword ({RESOURCE_SYMBOLS.metal}50 {RESOURCE_SYMBOLS.food}20)
           </button>
           <button
             style={btnStyle(false, canArcher)}
             onClick={() => canArcher && handleTrainSoldier('archer')}
             disabled={!canArcher}
           >
-            Archer (30W 30M)
+            Archer ({RESOURCE_SYMBOLS.wood}30 {RESOURCE_SYMBOLS.metal}30)
           </button>
           {t && (
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -291,7 +292,7 @@ export default function GameHUD({ resources }: Props) {
         <div style={rowStyle}>
           <span style={{ color: '#4ade80' }}>Farm</span>
           <span style={{ color: '#9ca3af' }}>—</span>
-          <span>{selection.built ? 'Ready (+5 food/s)' : 'Under Construction'}</span>
+          <span>{selection.built ? `Ready (+5 ${RESOURCE_SYMBOLS.food}/s)` : 'Under Construction'}</span>
         </div>
       )
     }
@@ -301,7 +302,7 @@ export default function GameHUD({ resources }: Props) {
         <div style={rowStyle}>
           <span style={{ color: '#94a3b8' }}>Mine</span>
           <span style={{ color: '#9ca3af' }}>—</span>
-          <span>{selection.built ? 'Ready (+2 metal/s)' : 'Under Construction'}</span>
+          <span>{selection.built ? `Ready (+2 ${RESOURCE_SYMBOLS.metal}/s)` : 'Under Construction'}</span>
         </div>
       )
     }

@@ -1,6 +1,6 @@
 # T028: Gebäudeplatzierung mit Preview und HUD-Bestätigung
 
-Status: 🔲 Open  
+Status: ✅ Done
 GitHub: https://github.com/azucay/greyveil/issues/28
 
 ## Problem
@@ -25,3 +25,8 @@ Gebäude erst als transparente Vorschau platzieren und den Bau danach explizit b
 - Erster Kartenklick erzeugt nur die transparente Vorschau.
 - Bau beginnt erst nach Häkchen-Bestätigung im HUD.
 - Spieler kann nicht versehentlich sofort bauen.
+
+## Umsetzung
+- Gebäude-Auswahl startet nur den Platzierungsmodus.
+- Erster Karten-Tap zeigt eine transparente Preview; erst das HUD-Häkchen bestätigt und startet den Bau.
+- Abbrechen entfernt die Preview, ungültige Positionen blockieren die Bestätigung.

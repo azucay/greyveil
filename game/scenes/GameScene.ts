@@ -16,6 +16,14 @@ import type { GameSelection, SoldierType } from '@/types/units'
 import type { MinimapData } from '@/types/minimap'
 import type { Worker } from '@/game/entities/units/Worker'
 
+type BuildPreview = {
+  type: BuildingType
+  tileX: number
+  tileY: number
+  valid: boolean
+  gfx: Phaser.GameObjects.Graphics
+}
+
 export class GameScene extends Phaser.Scene {
   private mapSystem!: MapSystem
   resourceSystem!: ResourceSystem
@@ -37,6 +45,7 @@ export class GameScene extends Phaser.Scene {
   private selectedBuilding: Building | null = null
   private selectedSoldiers: Soldier[] = []
   buildMode: BuildingType | null = null
+  private buildPreview: BuildPreview | null = null
   private selectionEmitTimer = 0
 
   constructor() { super({ key: 'GameScene' }) }
@@ -70,12 +79,13 @@ export class GameScene extends Phaser.Scene {
     this.setupDragPanning()
 
     EventBus.on<BuildingType>('start-build', (type) => {
-      this.buildMode = type
-      EventBus.emit<BuildingType | null>('build-mode-changed', type)
+      this.setBuildMode(type)
     })
     EventBus.on<void>('cancel-build', () => {
-      this.buildMode = null
-      EventBus.emit<BuildingType | null>('build-mode-changed', null)
+      this.cancelBuildMode()
+    })
+    EventBus.on<void>('confirm-build', () => {
+      this.confirmBuildPreview()
     })
     EventBus.on<void>('request-train-worker', () => {
       if (this.selectedBuilding?.buildingType === 'townhall') {
@@ -138,29 +148,101 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  private setBuildMode(type: BuildingType): void {
+    this.destroyBuildPreview()
+    this.buildMode = type
+    EventBus.emit<BuildingType | null>('build-mode-changed', type)
+    EventBus.emit<{ type: BuildingType; ready: boolean; valid: boolean } | null>('build-preview-changed', null)
+  }
+
+  private cancelBuildMode(): void {
+    this.buildMode = null
+    this.destroyBuildPreview()
+    EventBus.emit<BuildingType | null>('build-mode-changed', null)
+    EventBus.emit<{ type: BuildingType; ready: boolean; valid: boolean } | null>('build-preview-changed', null)
+  }
+
+  private destroyBuildPreview(): void {
+    if (!this.buildPreview) return
+    this.buildPreview.gfx.destroy()
+    this.buildPreview = null
+  }
+
+  private isValidBuildTile(tileX: number, tileY: number): boolean {
+    const tile = this.mapSystem.getTile(tileX, tileY)
+    const walkable = tile?.walkable ?? false
+    return walkable && !this.buildingSystem.isTileOccupied(tileX, tileY) && tile?.type !== 'water' && tile?.type !== 'mountain'
+  }
+
+  private canAffordBuild(type: BuildingType): boolean {
+    return this.resourceSystem.canAfford('player', BUILDING_CONFIGS[type].cost)
+  }
+
+  private showBuildPreview(type: BuildingType, tileX: number, tileY: number): void {
+    const tileValid = this.isValidBuildTile(tileX, tileY)
+    const affordable = this.canAffordBuild(type)
+    const valid = tileValid && affordable
+    const config = BUILDING_CONFIGS[type]
+    const worldX = tileX * TILE_SIZE + TILE_SIZE / 2
+    const worldY = tileY * TILE_SIZE + TILE_SIZE / 2
+    const hw = config.width / 2
+    const hh = config.height / 2
+    const color = valid ? config.color : 0xef4444
+
+    if (!this.buildPreview) {
+      this.buildPreview = { type, tileX, tileY, valid, gfx: this.add.graphics() }
+      this.buildPreview.gfx.setDepth(4)
+    }
+
+    this.buildPreview.type = type
+    this.buildPreview.tileX = tileX
+    this.buildPreview.tileY = tileY
+    this.buildPreview.valid = valid
+    this.buildPreview.gfx.clear()
+    this.buildPreview.gfx.setPosition(worldX, worldY)
+    this.buildPreview.gfx.fillStyle(color, valid ? 0.38 : 0.22)
+    this.buildPreview.gfx.fillRoundedRect(-hw, -hh, config.width, config.height, 4)
+    this.buildPreview.gfx.lineStyle(2, valid ? 0x22c55e : 0xef4444, 0.95)
+    this.buildPreview.gfx.strokeRoundedRect(-hw, -hh, config.width, config.height, 4)
+    this.buildPreview.gfx.lineStyle(1, 0xffffff, 0.35)
+    this.buildPreview.gfx.strokeRect(-TILE_SIZE / 2, -TILE_SIZE / 2, TILE_SIZE, TILE_SIZE)
+
+    EventBus.emit<{ type: BuildingType; ready: boolean; valid: boolean } | null>('build-preview-changed', { type, ready: true, valid })
+  }
+
+  private confirmBuildPreview(): void {
+    if (!this.buildMode || !this.buildPreview || !this.buildPreview.valid) return
+
+    const { type, tileX, tileY } = this.buildPreview
+    if (!this.isValidBuildTile(tileX, tileY) || !this.canAffordBuild(type)) {
+      this.showBuildPreview(type, tileX, tileY)
+      return
+    }
+
+    const building = new Building(this, type, 'player', tileX, tileY)
+    this.buildingSystem.addBuilding(building, tileX, tileY)
+    const buildCost = BUILDING_CONFIGS[type].cost
+    for (const [rType, amount] of Object.entries(buildCost)) {
+      this.resourceSystem.subtract('player', rType as ResourceType, amount as number)
+    }
+    EventBus.emit('resources-updated', this.resourceSystem.getPlayerResources())
+
+    const builder = this.selectedWorker ?? this.unitSystem.workers.find(w => w.workerState === 'idle' && w.faction === 'player') ?? null
+    if (builder) this.unitSystem.commandBuild(builder, building)
+
+    this.cancelBuildMode()
+    this.clearSelection()
+    this.selectedBuilding = building
+    building.setSelected(true)
+    this.emitBuildingSelection(building)
+  }
+
   private handleTap(worldX: number, worldY: number): void {
     const tileX = Math.floor(worldX / TILE_SIZE)
     const tileY = Math.floor(worldY / TILE_SIZE)
 
     if (this.buildMode !== null) {
-      const tile = this.mapSystem.getTile(tileX, tileY)
-      const walkable = tile?.walkable ?? false
-      if (walkable && !this.buildingSystem.isTileOccupied(tileX, tileY) && tile?.type !== 'water' && tile?.type !== 'mountain') {
-        const building = new Building(this, this.buildMode, 'player', tileX, tileY)
-        this.buildingSystem.addBuilding(building, tileX, tileY)
-        const buildCost = BUILDING_CONFIGS[this.buildMode].cost
-        for (const [rType, amount] of Object.entries(buildCost)) {
-          this.resourceSystem.subtract('player', rType as ResourceType, amount as number)
-        }
-        const builder = this.selectedWorker ?? this.unitSystem.workers.find(w => w.workerState === 'idle' && w.faction === 'player') ?? null
-        if (builder) this.unitSystem.commandBuild(builder, building)
-        this.buildMode = null
-        EventBus.emit<BuildingType | null>('build-mode-changed', null)
-        this.clearSelection()
-        this.selectedBuilding = building
-        building.setSelected(true)
-        this.emitBuildingSelection(building)
-      }
+      this.showBuildPreview(this.buildMode, tileX, tileY)
       return
     }
 

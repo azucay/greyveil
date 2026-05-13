@@ -1,6 +1,6 @@
 # T027: Baufortschritt direkt über Gebäude anzeigen
 
-Status: 🔲 Open  
+Status: ✅ Done
 GitHub: https://github.com/azucay/greyveil/issues/27
 
 ## Problem
@@ -17,3 +17,7 @@ Baufortschritt direkt über dem entstehenden Gebäude anzeigen.
 ## Akzeptanzkriterien
 - Während des Baus ist der Fortschritt direkt am Gebäude sichtbar.
 - Nach Abschluss bleibt keine Fortschrittsanzeige zurück.
+
+## Umsetzung
+- Baufortschritt wird als kompakter Balken direkt oberhalb des Gebäudes im Phaser-Canvas angezeigt.
+- Die Anzeige verschwindet beim Fertigstellen automatisch.

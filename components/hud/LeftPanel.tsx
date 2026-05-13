@@ -7,6 +7,7 @@ import { SOLDIER_CONFIGS } from '@/types/units'
 import type { GameSelection, SoldierType } from '@/types/units'
 import type { BuildingType } from '@/types/buildings'
 import type { Resources } from '@/types/resources'
+import { formatResourceCost, RESOURCE_SYMBOLS } from '@/types/resources'
 
 interface Props {
   resources: Resources
@@ -27,29 +28,35 @@ const WORKER_STATE_DE: Record<string, string> = {
   returning: 'Kehrt zurück', building: 'Baut', moving_to_build: 'Zum Bau',
 }
 
-const BUILD_BUTTONS: { type: BuildingType; icon: string; costLabel: string }[] = [
-  { type: 'farm',     icon: '🌾', costLabel: '60H' },
-  { type: 'mine',     icon: '⛏️', costLabel: '80H 60S' },
-  { type: 'barracks', icon: '🛡️', costLabel: '100H 80S' },
+const BUILD_BUTTONS: { type: BuildingType; icon: string }[] = [
+  { type: 'farm',     icon: '🌾' },
+  { type: 'mine',     icon: '⛏️' },
+  { type: 'barracks', icon: '🛡️' },
 ]
+
+type BuildPreviewState = { type: BuildingType; ready: boolean; valid: boolean } | null
 
 export default function LeftPanel({ resources }: Props) {
   const [selection, setSelection] = useState<GameSelection>({ type: 'none' })
   const [buildMode, setBuildMode] = useState<BuildingType | null>(null)
+  const [buildPreview, setBuildPreview] = useState<BuildPreviewState>(null)
   const [training, setTraining]   = useState<{ progress: number } | null>(null)
 
   useEffect(() => {
     const onSel   = (s: GameSelection)               => setSelection(s)
     const onBuild = (m: BuildingType | null)          => setBuildMode(m)
+    const onPreview = (p: BuildPreviewState)          => setBuildPreview(p)
     const onTrain = (t: { progress: number } | null) => setTraining(t)
 
     EventBus.on<GameSelection>('selection-changed', onSel)
     EventBus.on<BuildingType | null>('build-mode-changed', onBuild)
+    EventBus.on<BuildPreviewState>('build-preview-changed', onPreview)
     EventBus.on<{ progress: number } | null>('training-update', onTrain)
 
     return () => {
       EventBus.off<GameSelection>('selection-changed', onSel)
       EventBus.off<BuildingType | null>('build-mode-changed', onBuild)
+      EventBus.off<BuildPreviewState>('build-preview-changed', onPreview)
       EventBus.off<{ progress: number } | null>('training-update', onTrain)
     }
   }, [])
@@ -152,7 +159,7 @@ export default function LeftPanel({ resources }: Props) {
               style={{ ...btn(resources.wood >= 50 && training === null), marginTop: '4px' }}
               onClick={() => resources.wood >= 50 && training === null && EventBus.emit<void>('request-train-worker', undefined)}
             >
-              + Arbeiter (50H)
+              + Arbeiter ({RESOURCE_SYMBOLS.wood}50)
             </button>
             {training !== null && (
               <>
@@ -173,10 +180,10 @@ export default function LeftPanel({ resources }: Props) {
               {statRow('HP', BUILDING_CONFIGS.barracks.hp)}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '4px' }}>
                 <button style={btn(canSword)} onClick={() => canSword && EventBus.emit<SoldierType>('request-train-soldier', 'swordsman')}>
-                  ⚔️ Schwert (50M 20N)
+                  ⚔️ Schwert ({RESOURCE_SYMBOLS.metal}50 {RESOURCE_SYMBOLS.food}20)
                 </button>
                 <button style={btn(canArcher)} onClick={() => canArcher && EventBus.emit<SoldierType>('request-train-soldier', 'archer')}>
-                  🏹 Bogner (30H 30M)
+                  🏹 Bogner ({RESOURCE_SYMBOLS.wood}30 {RESOURCE_SYMBOLS.metal}30)
                 </button>
               </div>
               {t && (
@@ -194,14 +201,14 @@ export default function LeftPanel({ resources }: Props) {
         {type === 'farm' && (
           <>
             {statRow('HP', BUILDING_CONFIGS.farm.hp)}
-            {statRow('Produktion', selection.built ? '+5 N/s' : 'Im Bau…')}
+            {statRow('Produktion', selection.built ? `+5 ${RESOURCE_SYMBOLS.food}/s` : 'Im Bau…')}
           </>
         )}
 
         {type === 'mine' && (
           <>
             {statRow('HP', BUILDING_CONFIGS.mine.hp)}
-            {statRow('Produktion', selection.built ? '+2 M/s' : 'Im Bau…')}
+            {statRow('Produktion', selection.built ? `+2 ${RESOURCE_SYMBOLS.metal}/s` : 'Im Bau…')}
           </>
         )}
       </div>
@@ -241,7 +248,25 @@ export default function LeftPanel({ resources }: Props) {
       <div style={{ padding: '6px', flexShrink: 0 }}>
         {buildMode !== null ? (
           <>
-            <div style={{ fontSize: '10px', color: '#fbbf24', marginBottom: '4px' }}>Auf Karte tippen</div>
+            <div style={{ fontSize: '10px', color: '#fbbf24', marginBottom: '4px' }}>
+              {buildPreview?.ready ? 'Vorschau prüfen' : 'Position antippen'}
+            </div>
+            {buildPreview?.ready && (
+              <button
+                style={{
+                  ...btn(buildPreview.valid),
+                  marginBottom: '4px',
+                  textAlign: 'center' as const,
+                  background: buildPreview.valid ? 'rgba(34,197,94,0.22)' : 'rgba(75,85,99,0.18)',
+                  border: buildPreview.valid ? '1px solid #22c55e' : '1px solid rgba(255,255,255,0.08)',
+                  color: buildPreview.valid ? '#bbf7d0' : '#6b7280',
+                }}
+                disabled={!buildPreview.valid}
+                onClick={() => buildPreview.valid && EventBus.emit<void>('confirm-build', undefined)}
+              >
+                ✓ Bau bestätigen
+              </button>
+            )}
             <button
               style={{ ...btn(true), background: 'rgba(239,68,68,0.2)', border: '1px solid #ef4444', color: '#fca5a5' }}
               onClick={() => EventBus.emit<void>('cancel-build', undefined)}
@@ -251,7 +276,7 @@ export default function LeftPanel({ resources }: Props) {
           </>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-            {BUILD_BUTTONS.map(({ type, icon, costLabel }) => {
+            {BUILD_BUTTONS.map(({ type, icon }) => {
               const affordable = canAffordBuilding(type)
               return (
                 <button
@@ -260,7 +285,7 @@ export default function LeftPanel({ resources }: Props) {
                   onClick={() => affordable && EventBus.emit<BuildingType>('start-build', type)}
                 >
                   {icon} {UNIT_NAMES[type]}<br />
-                  <span style={{ fontSize: '9px', color: affordable ? '#9ca3af' : '#374151' }}>{costLabel}</span>
+                  <span style={{ fontSize: '9px', color: affordable ? '#9ca3af' : '#374151' }}>{formatResourceCost(BUILDING_CONFIGS[type].cost)}</span>
                 </button>
               )
             })}

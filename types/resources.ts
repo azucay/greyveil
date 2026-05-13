@@ -18,3 +18,18 @@ export interface ResourceNode {
   tileY: number
   depleted: boolean
 }
+
+export const RESOURCE_SYMBOLS: Record<ResourceType, string> = {
+  wood: '🪵',
+  stone: '🪨',
+  food: '🌾',
+  metal: '⚙️',
+  gold: '🪙',
+}
+
+export function formatResourceCost(cost: ResourceCost): string {
+  return (Object.entries(cost) as [ResourceType, number | undefined][])
+    .filter(([, amount]) => (amount ?? 0) > 0)
+    .map(([type, amount]) => `${RESOURCE_SYMBOLS[type]}${amount}`)
+    .join(' ')
+}
