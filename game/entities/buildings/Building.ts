@@ -49,9 +49,12 @@ export class Building extends Phaser.GameObjects.Container {
       townhall: 'Town Hall', barracks: 'Barracks', farm: 'Farm', mine: 'Mine',
     }
     const hh = config.height / 2
-    this.labelText = scene.add.text(0, hh + 3, labelNames[buildingType], {
-      fontSize: '10px', color: '#ffffff', fontFamily: 'monospace',
-      stroke: '#000000', strokeThickness: 3,
+    this.labelText = scene.add.text(0, hh + 5, labelNames[buildingType], {
+      fontSize: '14px', color: '#ffffff', fontFamily: 'monospace',
+      fontStyle: 'bold',
+      stroke: '#000000', strokeThickness: 5,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      padding: { x: 4, y: 2 },
     }).setOrigin(0.5, 0)
 
     this.add(this.bodyGfx)

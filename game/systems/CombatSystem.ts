@@ -3,6 +3,7 @@ import { Soldier } from '@/game/entities/units/Soldier'
 import { BuildingSystem } from '@/game/systems/BuildingSystem'
 import { MapSystem } from '@/game/systems/MapSystem'
 import { TILE_SIZE } from '@/game/constants'
+import { BUILDING_CONFIGS } from '@/types/buildings'
 import type { Building } from '@/game/entities/buildings/Building'
 import type { Faction } from '@/types/units'
 
@@ -78,6 +79,49 @@ export class CombatSystem {
     }
   }
 
+  private getTargetPoint(soldier: Soldier, target: Soldier | Building): { x: number; y: number } {
+    if (target instanceof Soldier) return { x: target.x, y: target.y }
+
+    const cfg = BUILDING_CONFIGS[target.buildingType]
+    const dx = soldier.x - target.x
+    const dy = soldier.y - target.y
+    const rawLen = Math.sqrt(dx * dx + dy * dy)
+    const dirX = rawLen > 0.001 ? dx / rawLen : 0
+    const dirY = rawLen > 0.001 ? dy / rawLen : 1
+    const hw = cfg.width / 2
+    const hh = cfg.height / 2
+    const scaleX = Math.abs(dirX) > 0.001 ? hw / Math.abs(dirX) : Number.POSITIVE_INFINITY
+    const scaleY = Math.abs(dirY) > 0.001 ? hh / Math.abs(dirY) : Number.POSITIVE_INFINITY
+    const edgeDistance = Math.min(scaleX, scaleY)
+    const padding = 16
+
+    return {
+      x: target.x + dirX * (edgeDistance + padding),
+      y: target.y + dirY * (edgeDistance + padding),
+    }
+  }
+
+  private spawnArrow(soldier: Soldier, targetX: number, targetY: number): void {
+    const angle = Math.atan2(targetY - soldier.y, targetX - soldier.x)
+    const arrow = soldier.scene.add.graphics()
+    arrow.setDepth(5)
+    arrow.lineStyle(3, 0xfacc15, 1)
+    arrow.lineBetween(-8, 0, 8, 0)
+    arrow.fillStyle(0xfef08a, 1)
+    arrow.fillTriangle(8, 0, 2, -4, 2, 4)
+    arrow.setPosition(soldier.x + Math.cos(angle) * 12, soldier.y + Math.sin(angle) * 12)
+    arrow.setRotation(angle)
+
+    soldier.scene.tweens.add({
+      targets: arrow,
+      x: targetX,
+      y: targetY,
+      duration: 180,
+      ease: 'Linear',
+      onComplete: () => arrow.destroy(),
+    })
+  }
+
   update(delta: number, buildingSystem: BuildingSystem): void {
     this.applySeparation(delta)
 
@@ -92,10 +136,9 @@ export class CombatSystem {
         }
 
         if (soldier.target) {
-          const tx = (soldier.target as Soldier).x ?? (soldier.target as Building).x
-          const ty = (soldier.target as Soldier).y ?? (soldier.target as Building).y
-          const dx = tx - soldier.x
-          const dy = ty - soldier.y
+          const targetPoint = this.getTargetPoint(soldier, soldier.target)
+          const dx = targetPoint.x - soldier.x
+          const dy = targetPoint.y - soldier.y
           const dist = Math.sqrt(dx * dx + dy * dy)
 
           if (dist <= soldier.attackRange) {
@@ -103,6 +146,8 @@ export class CombatSystem {
             soldier.attackTimer += delta
             if (soldier.attackTimer >= 1000) {
               soldier.attackTimer = 0
+              soldier.playAttackFeedback(targetPoint.x, targetPoint.y)
+              if (soldier.soldierType === 'archer') this.spawnArrow(soldier, targetPoint.x, targetPoint.y)
               if (soldier.target instanceof Soldier) {
                 const died = soldier.target.takeDamage(soldier.damage)
                 if (died) soldier.target = null
@@ -123,15 +168,15 @@ export class CombatSystem {
             }
           } else {
             // Chase with A* so soldiers don't walk through water/mountains
-            const targetTX = Math.floor(tx / TILE_SIZE)
-            const targetTY = Math.floor(ty / TILE_SIZE)
+            const targetTX = Math.floor(targetPoint.x / TILE_SIZE)
+            const targetTY = Math.floor(targetPoint.y / TILE_SIZE)
             const fromTX = Math.floor(soldier.x / TILE_SIZE)
             const fromTY = Math.floor(soldier.y / TILE_SIZE)
             const path = this.mapSystem.findPath(fromTX, fromTY, targetTX, targetTY)
             if (path.length > 0) {
               soldier.setPath(path.map(p => ({ x: p.worldX, y: p.worldY })))
             } else {
-              soldier.setMoveTarget(tx, ty)
+              soldier.setMoveTarget(targetPoint.x, targetPoint.y)
             }
           }
         } else {

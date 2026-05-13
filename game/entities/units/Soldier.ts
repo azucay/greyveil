@@ -43,11 +43,22 @@ export class Soldier extends Phaser.GameObjects.Container {
     this.selectionGfx = scene.add.graphics()
 
     const color = faction === 'player' ? 0x3b82f6 : 0xef4444
+    const accent = faction === 'player' ? 0xdbeafe : 0xfee2e2
     this.bodyGfx.fillStyle(color, 1)
-    this.bodyGfx.fillCircle(0, 0, cfg.radius)
-    // inner dot to distinguish from worker
-    this.bodyGfx.fillStyle(0xffffff, 0.4)
-    this.bodyGfx.fillCircle(0, 0, 3)
+    if (soldierType === 'swordsman') {
+      this.bodyGfx.fillCircle(0, 0, cfg.radius)
+      this.bodyGfx.lineStyle(3, accent, 1)
+      this.bodyGfx.lineBetween(-4, 7, 7, -8)
+      this.bodyGfx.lineStyle(2, accent, 0.9)
+      this.bodyGfx.lineBetween(-8, 2, 2, 8)
+    } else {
+      this.bodyGfx.fillTriangle(0, -cfg.radius - 1, cfg.radius + 2, cfg.radius, -cfg.radius - 2, cfg.radius)
+      this.bodyGfx.lineStyle(2, accent, 1)
+      this.bodyGfx.beginPath()
+      this.bodyGfx.arc(0, 1, cfg.radius + 2, -1.15, 1.15, false)
+      this.bodyGfx.strokePath()
+      this.bodyGfx.lineBetween(5, -6, 5, 8)
+    }
 
     this.selectionGfx.lineStyle(2, 0xffffff, 1)
     this.selectionGfx.strokeCircle(0, 0, cfg.radius + 4)
@@ -93,6 +104,21 @@ export class Soldier extends Phaser.GameObjects.Container {
       return true
     }
     return false
+  }
+
+  playAttackFeedback(targetX: number, targetY: number): void {
+    const angle = Math.atan2(targetY - this.y, targetX - this.x)
+    const lunge = this.soldierType === 'swordsman' ? 5 : 2
+    this.scene.tweens.add({
+      targets: this,
+      x: this.x + Math.cos(angle) * lunge,
+      y: this.y + Math.sin(angle) * lunge,
+      scaleX: 1.12,
+      scaleY: 1.12,
+      duration: 80,
+      yoyo: true,
+      ease: 'Sine.easeOut',
+    })
   }
 
   drawHpBar(): void {

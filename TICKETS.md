@@ -12,6 +12,8 @@
 | T008 | Claude API Makrostrategie | Phase 2 | 🔲 Open |
 | T009 | Sieg/Niederlage-Bedingung | Phase 2 | 🔲 Open |
 | T010 | PWA Setup | Phase 3 | 🔲 Open |
+| T022 | Einheiten visuell unterscheidbar machen | Polish/MVP | ✅ Done |
+| T023 | Gebäude-Labels besser lesbar machen | Polish/MVP | ✅ Done |
 
 ---
 
