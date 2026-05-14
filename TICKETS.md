@@ -12,6 +12,8 @@
 | T008 | Claude API Makrostrategie | Phase 2 | 🔲 Open |
 | T009 | Sieg/Niederlage-Bedingung | Phase 2 | 🔲 Open |
 | T010 | PWA Setup | Phase 3 | 🔲 Open |
+| T021 | KI-Verbesserung — Mehrphasige Strategie | Phase 2 | 🔲 Open |
+| T014 | Minimap | Polish/MVP | ✅ Done |
 | T022 | Einheiten visuell unterscheidbar machen | Polish/MVP | ✅ Done |
 | T023 | Gebäude-Labels besser lesbar machen | Polish/MVP | ✅ Done |
 | T024 | Feindliche Gebäude-Schadenszustände sichtbar machen | Polish/MVP | ✅ Done |
@@ -20,6 +22,7 @@
 | T027 | Baufortschritt direkt über Gebäude anzeigen | Polish/MVP | ✅ Done |
 | T028 | Gebäudeplatzierung mit Preview und HUD-Bestätigung | Polish/MVP | ✅ Done |
 | ERI-1 | Doppelte Baufortschrittsanzeige bei Gebäuden entfernen | Polish/MVP | ✅ Done |
+| T029 | Wachturm als defensives Gebäude hinzufügen | Phase 2 | 🔲 Open |
 
 ---
 
