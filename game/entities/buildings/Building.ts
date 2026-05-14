@@ -197,8 +197,6 @@ export class Building extends Phaser.GameObjects.Container {
     const hw = config.width / 2
     const hh = config.height / 2
     const barY = -hh - 9
-    const labelY = barY - 9
-    const percent = Math.round(this.buildProgress * 100)
 
     this.progressGfx.clear()
 
@@ -209,11 +207,5 @@ export class Building extends Phaser.GameObjects.Container {
     // Fill
     this.progressGfx.fillStyle(0x22c55e, 1)
     this.progressGfx.fillRoundedRect(-hw, barY, Math.max(3, Math.floor(barWidth * this.buildProgress)), barHeight, 3)
-
-    this.progressGfx.fillStyle(0x020617, 0.7)
-    this.progressGfx.fillRoundedRect(-16, labelY, 32, 8, 4)
-    this.progressGfx.fillStyle(0xe5e7eb, 1)
-    this.progressGfx.fillRect(-12, labelY + 3, Math.max(1, Math.floor(24 * this.buildProgress)), 2)
-    void percent
   }
 }

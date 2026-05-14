@@ -19,6 +19,7 @@
 | T026 | Ressourcenanzeige auf einheitliche Symbole umstellen | Polish/MVP | ✅ Done |
 | T027 | Baufortschritt direkt über Gebäude anzeigen | Polish/MVP | ✅ Done |
 | T028 | Gebäudeplatzierung mit Preview und HUD-Bestätigung | Polish/MVP | ✅ Done |
+| ERI-1 | Doppelte Baufortschrittsanzeige bei Gebäuden entfernen | Polish/MVP | ✅ Done |
 
 ---
 

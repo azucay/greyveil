@@ -307,6 +307,16 @@ Commit + Push → Review → Merge to main
 - `build-preview-changed` als Event hält React-HUD und Phaser-Preview sauber entkoppelt.
 - Ungültige Platzierungen können dieselbe Preview nutzen, aber mit roter Farbe und deaktiviertem Häkchen.
 ---
+### [ERI-1] Doppelte Baufortschrittsanzeige bei Gebäuden entfernen — 2026-05-14
+**Was ich vorher hätte wissen sollen:**
+- `Building.drawProgressBar()` kann mehrere visuelle Elemente für denselben `buildProgress` zeichnen, auch wenn nur ein `Graphics`-Objekt verwendet wird.
+
+**Fallstricke:**
+- Eine zweite kleine Pill-/Mini-Balken-Anzeige wirkt wie ein doppelter Baufortschritt, obwohl sie aus derselben Fortschrittsvariable gespeist wird.
+
+**Nützliche Erkenntnisse:**
+- Für Baufortschritt reicht der Hauptbalken direkt über dem Gebäude; zusätzliche Mikro-Indikatoren sollten vermieden werden, solange sie keinen anderen Status darstellen.
+---
 
 Format:
 ```
