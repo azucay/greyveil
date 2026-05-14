@@ -131,7 +131,7 @@ export class Building extends Phaser.GameObjects.Container {
     const barHeight = 4
     const hw = config.width / 2
     const hh = config.height / 2
-    const barY = hh + 6
+    const barY = -hh - 10
 
     this.progressGfx.clear()
 
