@@ -333,6 +333,8 @@ export class GameScene extends Phaser.Scene {
       EventBus.emit<GameSelection>('selection-changed', { type: 'farm', built: building.built })
     } else if (btype === 'mine') {
       EventBus.emit<GameSelection>('selection-changed', { type: 'mine', built: building.built })
+    } else if (btype === 'watchtower') {
+      EventBus.emit<GameSelection>('selection-changed', { type: 'watchtower', built: building.built })
     }
   }
 

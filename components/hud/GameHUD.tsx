@@ -15,6 +15,7 @@ const BUILD_BUTTONS: { type: BuildingType; label: string; costLabel: string }[] 
   { type: 'farm', label: 'Farm', costLabel: '🪵60' },
   { type: 'mine', label: 'Mine', costLabel: '🪵80 🪨60' },
   { type: 'barracks', label: 'Barracks', costLabel: '🪵100 🪨80' },
+  { type: 'watchtower', label: 'Wachturm', costLabel: '🪵120 🪨80' },
 ]
 
 export default function GameHUD({ resources }: Props) {
@@ -69,6 +70,7 @@ export default function GameHUD({ resources }: Props) {
     if (type === 'farm') return resources.wood >= 60
     if (type === 'mine') return resources.wood >= 80 && resources.stone >= 60
     if (type === 'barracks') return resources.wood >= 100 && resources.stone >= 80
+    if (type === 'watchtower') return resources.wood >= 120 && resources.stone >= 80
     return false
   }
 

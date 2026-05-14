@@ -15,6 +15,7 @@ export type GameSelection =
   | { type: 'barracks'; built: boolean; training: { soldierType: SoldierType; progress: number } | null }
   | { type: 'farm'; built: boolean }
   | { type: 'mine'; built: boolean }
+  | { type: 'watchtower'; built: boolean }
 
 export interface SoldierConfig {
   hp: number

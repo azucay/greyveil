@@ -1,3 +1,4 @@
+import * as Phaser from 'phaser'
 import { EventBus } from '@/game/EventBus'
 import { Soldier } from '@/game/entities/units/Soldier'
 import { BuildingSystem } from '@/game/systems/BuildingSystem'
@@ -101,18 +102,18 @@ export class CombatSystem {
     }
   }
 
-  private spawnArrow(soldier: Soldier, targetX: number, targetY: number): void {
-    const angle = Math.atan2(targetY - soldier.y, targetX - soldier.x)
-    const arrow = soldier.scene.add.graphics()
+  private spawnArrow(scene: Phaser.Scene, fromX: number, fromY: number, targetX: number, targetY: number): void {
+    const angle = Math.atan2(targetY - fromY, targetX - fromX)
+    const arrow = scene.add.graphics()
     arrow.setDepth(5)
     arrow.lineStyle(3, 0xfacc15, 1)
     arrow.lineBetween(-8, 0, 8, 0)
     arrow.fillStyle(0xfef08a, 1)
     arrow.fillTriangle(8, 0, 2, -4, 2, 4)
-    arrow.setPosition(soldier.x + Math.cos(angle) * 12, soldier.y + Math.sin(angle) * 12)
+    arrow.setPosition(fromX + Math.cos(angle) * 12, fromY + Math.sin(angle) * 12)
     arrow.setRotation(angle)
 
-    soldier.scene.tweens.add({
+    scene.tweens.add({
       targets: arrow,
       x: targetX,
       y: targetY,
@@ -122,8 +123,28 @@ export class CombatSystem {
     })
   }
 
+  private updateWatchtowers(delta: number, buildingSystem: BuildingSystem): void {
+    for (const tower of buildingSystem.buildings.values()) {
+      if (tower.buildingType !== 'watchtower' || !tower.built) continue
+
+      const cfg = BUILDING_CONFIGS.watchtower
+      const range = cfg.attackRange ?? 0
+      const cooldown = cfg.attackCooldown ?? 1200
+      tower.attackTimer += delta
+      if (tower.attackTimer < cooldown) continue
+
+      const target = this.findNearestEnemyInRange(tower.x, tower.y, tower.faction, range)
+      if (!target) continue
+
+      tower.attackTimer = 0
+      this.spawnArrow(tower.scene, tower.x, tower.y - 18, target.x, target.y)
+      target.takeDamage(cfg.attackDamage ?? 0)
+    }
+  }
+
   update(delta: number, buildingSystem: BuildingSystem): void {
     this.applySeparation(delta)
+    this.updateWatchtowers(delta, buildingSystem)
 
     for (const soldier of this.soldiers) {
       if (soldier.state === 'dead') continue
@@ -147,7 +168,7 @@ export class CombatSystem {
             if (soldier.attackTimer >= 1000) {
               soldier.attackTimer = 0
               soldier.playAttackFeedback(targetPoint.x, targetPoint.y)
-              if (soldier.soldierType === 'archer') this.spawnArrow(soldier, targetPoint.x, targetPoint.y)
+              if (soldier.soldierType === 'archer') this.spawnArrow(soldier.scene, soldier.x, soldier.y, targetPoint.x, targetPoint.y)
               if (soldier.target instanceof Soldier) {
                 const died = soldier.target.takeDamage(soldier.damage)
                 if (died) soldier.target = null
@@ -198,6 +219,19 @@ export class CombatSystem {
       if (other.faction === soldier.faction || other.state === 'dead') continue
       const dx = other.x - soldier.x
       const dy = other.y - soldier.y
+      const d = dx * dx + dy * dy
+      if (d < bestDist) { bestDist = d; best = other }
+    }
+    return best
+  }
+
+  private findNearestEnemyInRange(x: number, y: number, faction: Faction, range: number): Soldier | null {
+    let best: Soldier | null = null
+    let bestDist = range * range
+    for (const other of this.soldiers) {
+      if (other.faction === faction || other.state === 'dead') continue
+      const dx = other.x - x
+      const dy = other.y - y
       const d = dx * dx + dy * dy
       if (d < bestDist) { bestDist = d; best = other }
     }

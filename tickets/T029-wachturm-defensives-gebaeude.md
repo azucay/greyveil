@@ -1,6 +1,6 @@
 # T029 — Wachturm als defensives Gebäude hinzufügen
 
-Status: 🔲 Open  
+Status: ✅ Done  
 Phase: Phase 2 / Gameplay Loop  
 GitHub: https://github.com/azucay/greyveil/issues/29
 
@@ -20,14 +20,23 @@ Greyveil hat bereits Gebäude, Einheitenkampf und visuelle Projektil-Effekte fü
 - Der Turm greift nicht außerhalb seiner Reichweite an und feuert nicht auf eigene Einheiten/Gebäude.
 
 ## Akzeptanzkriterien
-- [ ] Wachturm ist im Build-/HUD-System auswählbar und baubar.
-- [ ] Ressourcen werden beim Bau korrekt geprüft und abgezogen.
-- [ ] Der gebaute Wachturm erscheint visuell eindeutig auf der Karte.
-- [ ] Gegner in Reichweite werden automatisch beschossen.
-- [ ] Pfeil-/Projektil-Effekt ist sichtbar oder ein vorhandener Projektil-Effekt wird wiederverwendet.
-- [ ] Gegner erhalten Schaden; tote Gegner werden wie bisher entfernt/behandelt.
-- [ ] Keine Angriffe auf eigene Einheiten oder Ziele außerhalb der Reichweite.
-- [ ] `npm run build` ist grün.
+- [x] Wachturm ist im Build-/HUD-System auswählbar und baubar.
+- [x] Ressourcen werden beim Bau korrekt geprüft und abgezogen.
+- [x] Der gebaute Wachturm erscheint visuell eindeutig auf der Karte.
+- [x] Gegner in Reichweite werden automatisch beschossen.
+- [x] Pfeil-/Projektil-Effekt ist sichtbar oder ein vorhandener Projektil-Effekt wird wiederverwendet.
+- [x] Gegner erhalten Schaden; tote Gegner werden wie bisher entfernt/behandelt.
+- [x] Keine Angriffe auf eigene Einheiten oder Ziele außerhalb der Reichweite.
+- [x] `npm run build` ist grün.
+
+## Umsetzung
+- `watchtower` als Gebäudetyp mit eigenen Kosten, HP, Bauzeit, Reichweite, Schaden und Cooldown ergänzt.
+- HUD-/Build-Menüs und Selektionsanzeige um Wachturm erweitert.
+- Wachturm visuell als hoher Turm mit Dachspitze/Label gezeichnet.
+- CombatSystem nutzt den bestehenden Pfeil-Effekt wieder und lässt gebaute Wachtürme nur feindliche Einheiten in Reichweite beschießen.
+
+## Verifikation
+- `npm run build` erfolgreich am 2026-05-14.
 
 ## Non-Goals
 - Keine Upgrades/Tech-Tree.

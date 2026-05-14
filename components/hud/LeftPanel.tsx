@@ -15,12 +15,12 @@ interface Props {
 
 const UNIT_ICONS: Record<string, string> = {
   worker: '👷', swordsman: '⚔️', archer: '🏹',
-  townhall: '🏰', barracks: '🛡️', farm: '🌾', mine: '⛏️',
+  townhall: '🏰', barracks: '🛡️', farm: '🌾', mine: '⛏️', watchtower: '🗼',
 }
 
 const UNIT_NAMES: Record<string, string> = {
   worker: 'Arbeiter', swordsman: 'Schwertmann', archer: 'Bogenschütze',
-  townhall: 'Rathaus', barracks: 'Kaserne', farm: 'Farm', mine: 'Mine',
+  townhall: 'Rathaus', barracks: 'Kaserne', farm: 'Farm', mine: 'Mine', watchtower: 'Wachturm',
 }
 
 const WORKER_STATE_DE: Record<string, string> = {
@@ -32,6 +32,7 @@ const BUILD_BUTTONS: { type: BuildingType; icon: string }[] = [
   { type: 'farm',     icon: '🌾' },
   { type: 'mine',     icon: '⛏️' },
   { type: 'barracks', icon: '🛡️' },
+  { type: 'watchtower', icon: '🗼' },
 ]
 
 type BuildPreviewState = { type: BuildingType; ready: boolean; valid: boolean } | null
@@ -209,6 +210,14 @@ export default function LeftPanel({ resources }: Props) {
           <>
             {statRow('HP', BUILDING_CONFIGS.mine.hp)}
             {statRow('Produktion', selection.built ? `+2 ${RESOURCE_SYMBOLS.metal}/s` : 'Im Bau…')}
+          </>
+        )}
+
+        {type === 'watchtower' && (
+          <>
+            {statRow('HP', BUILDING_CONFIGS.watchtower.hp)}
+            {statRow('Angriff', selection.built ? `${BUILDING_CONFIGS.watchtower.attackDamage} Schaden` : 'Im Bau…')}
+            {statRow('Reichweite', '5.5 Fel.')}
           </>
         )}
       </div>

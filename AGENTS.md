@@ -318,6 +318,21 @@ Commit + Push → Review → Merge to main
 - Für Baufortschritt reicht der Hauptbalken direkt über dem Gebäude; zusätzliche Mikro-Indikatoren sollten vermieden werden, solange sie keinen anderen Status darstellen.
 ---
 
+---
+### [T029] Wachturm als defensives Gebäude — 2026-05-14
+**Was ich vorher hätte wissen sollen:**
+- Defensive Gebäude können im bestehenden `CombatSystem` mit denselben Soldier-Ziel-/Damage-Modellen arbeiten; eine separate Turm-KI ist nicht nötig.
+- Projektil-Rendering sollte auf Start-/Ziel-Koordinaten abstrahiert werden, damit Bogenschützen und Wachtürme denselben Pfeil-Effekt nutzen.
+
+**Fallstricke:**
+- Wachtürme dürfen erst nach `built === true` feuern und müssen die Zielsuche auf feindliche, lebende Einheiten innerhalb der Reichweite begrenzen.
+- Der Gebäudetyp muss in `BuildingType`, `BUILDING_CONFIGS`, Label-Rendering, HUD-Build-Buttons und `GameSelection` ergänzt werden, sonst entstehen UI-/Type-Drifts.
+
+**Nützliche Erkenntnisse:**
+- Ein `attackTimer` direkt am `Building` reicht für MVP-Cooldowns und bleibt unabhängig von Soldier-State.
+- Der vorhandene Pfeil-Tween ist als allgemeiner `spawnArrow(scene, fromX, fromY, targetX, targetY)` wiederverwendbar.
+---
+
 Format:
 ```
 ---

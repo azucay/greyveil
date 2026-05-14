@@ -13,6 +13,7 @@ export class Building extends Phaser.GameObjects.Container {
   built: boolean
   tileX: number
   tileY: number
+  attackTimer = 0
 
   private bodyGfx: Phaser.GameObjects.Graphics
   private selectionGfx: Phaser.GameObjects.Graphics
@@ -50,7 +51,7 @@ export class Building extends Phaser.GameObjects.Container {
     this.labelBgGfx = scene.add.graphics()
 
     const labelNames: Record<BuildingType, string> = {
-      townhall: 'Rathaus', barracks: 'Kaserne', farm: 'Farm', mine: 'Mine',
+      townhall: 'Rathaus', barracks: 'Kaserne', farm: 'Farm', mine: 'Mine', watchtower: 'Wachturm',
     }
     const hh = config.height / 2
     this.labelText = scene.add.text(0, hh + 9, labelNames[buildingType], {
@@ -90,7 +91,14 @@ export class Building extends Phaser.GameObjects.Container {
 
     // Fill
     this.bodyGfx.fillStyle(color, alpha)
-    this.bodyGfx.fillRoundedRect(-hw, -hh, width, height, 4)
+    if (this.buildingType === 'watchtower') {
+      this.bodyGfx.fillRect(-hw, -hh + 12, width, height - 12)
+      this.bodyGfx.fillRect(-hw - 4, -hh, width + 8, 16)
+      this.bodyGfx.fillStyle(this.faction === 'player' ? 0xfbbf24 : 0xfca5a5, alpha)
+      this.bodyGfx.fillTriangle(-8, -hh + 4, 8, -hh + 4, 0, -hh - 11)
+    } else {
+      this.bodyGfx.fillRoundedRect(-hw, -hh, width, height, 4)
+    }
 
     // Subtle faction header stripe
     this.bodyGfx.fillStyle(this.faction === 'player' ? 0x60a5fa : 0xfca5a5, alpha * 0.55)
@@ -98,7 +106,12 @@ export class Building extends Phaser.GameObjects.Container {
 
     // Border
     this.bodyGfx.lineStyle(2, this.faction === 'player' ? 0xbfdbfe : 0xfecaca, alpha * 0.7)
-    this.bodyGfx.strokeRoundedRect(-hw, -hh, width, height, 4)
+    if (this.buildingType === 'watchtower') {
+      this.bodyGfx.strokeRect(-hw, -hh + 12, width, height - 12)
+      this.bodyGfx.strokeRect(-hw - 4, -hh, width + 8, 16)
+    } else {
+      this.bodyGfx.strokeRoundedRect(-hw, -hh, width, height, 4)
+    }
 
     this.drawDamageState()
   }

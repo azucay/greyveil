@@ -22,7 +22,7 @@
 | T027 | Baufortschritt direkt über Gebäude anzeigen | Polish/MVP | ✅ Done |
 | T028 | Gebäudeplatzierung mit Preview und HUD-Bestätigung | Polish/MVP | ✅ Done |
 | ERI-1 | Doppelte Baufortschrittsanzeige bei Gebäuden entfernen | Polish/MVP | ✅ Done |
-| T029 | Wachturm als defensives Gebäude hinzufügen | Phase 2 | 🔲 Open |
+| T029 | Wachturm als defensives Gebäude hinzufügen | Phase 2 | ✅ Done |
 
 ---
 
