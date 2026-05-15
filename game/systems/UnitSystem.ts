@@ -24,6 +24,7 @@ export class UnitSystem {
 
   workers: Worker[] = []
   trainingTimer: number | null = null
+  trainingFaction: Faction | null = null
 
   private soldierTraining: Map<string, { type: SoldierType; timer: number; faction: Faction }> = new Map()
   private gatherAccum: WeakMap<Worker, number> = new WeakMap()
@@ -112,12 +113,13 @@ export class UnitSystem {
   }
 
   // T16: enforces pop cap before training
-  startTraining(townHall: Building): void {
+  startTraining(townHall: Building, faction: Faction = 'player'): void {
     if (this.trainingTimer !== null) return
-    if (this.popCount >= this.popCap) return
-    if (!this.resourceSystem.canAfford('player', { wood: 50 })) return
-    this.resourceSystem.subtract('player', 'wood', 50)
+    if (this.getPopCount(faction) >= this.getPopCap(faction)) return
+    if (!this.resourceSystem.canAfford(faction, { wood: 50 })) return
+    this.resourceSystem.subtract(faction, 'wood', 50)
     this.trainingTimer = 0
+    this.trainingFaction = faction
     EventBus.emit<{ progress: number } | null>('training-update', { progress: 0 })
   }
 
@@ -205,9 +207,11 @@ export class UnitSystem {
       const progress = Math.min(this.trainingTimer / WORKER_TRAIN_TIME, 1)
       EventBus.emit<{ progress: number } | null>('training-update', { progress })
       if (this.trainingTimer >= WORKER_TRAIN_TIME) {
-        const th = this.buildingSystem.getTownHall('player')
-        if (th) this.spawnWorker(th.x + 60, th.y, th.x, th.y, 'player')
+        const faction = this.trainingFaction ?? 'player'
+        const th = this.buildingSystem.getTownHall(faction)
+        if (th) this.spawnWorker(th.x + 60, th.y, th.x, th.y, faction)
         this.trainingTimer = null
+        this.trainingFaction = null
         EventBus.emit<{ progress: number } | null>('training-update', null)
       }
     }

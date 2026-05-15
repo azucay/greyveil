@@ -19,9 +19,11 @@ export class AISystem {
 
   private decisionTimer = 0
   private claudeTimer   = 0
+  private attackCooldown = 0
 
   private readonly DECISION_INTERVAL = 4000
   private readonly CLAUDE_INTERVAL   = 30000
+  private readonly ATTACK_WAVE_COOLDOWN = 12000
 
   constructor(
     scene: Phaser.Scene,
@@ -51,6 +53,7 @@ export class AISystem {
   }
 
   update(delta: number): void {
+    this.attackCooldown = Math.max(0, this.attackCooldown - delta)
     this.decisionTimer += delta
     if (this.decisionTimer >= this.DECISION_INTERVAL) {
       this.decisionTimer = 0
@@ -66,6 +69,8 @@ export class AISystem {
 
   private makeDecision(): void {
     const aiWorkers   = this.unitSystem.workers.filter(w => w.faction === 'ai')
+    const idleWorkers = aiWorkers.filter(w => w.workerState === 'idle')
+    const livingWorkers = aiWorkers
     const aiBuildings = [...this.buildingSystem.buildings.values()].filter(b => b.faction === 'ai')
     const aiSoldiers  = this.combatSystem.getSoldiersOfFaction('ai')
     const res         = this.resourceSystem
@@ -74,14 +79,42 @@ export class AISystem {
     const hasMine       = aiBuildings.some(b => b.buildingType === 'mine')
     const barracks      = aiBuildings.filter(b => b.buildingType === 'barracks')
     const builtBarracks = barracks.filter(b => b.built)
+    const unfinishedBuildings = aiBuildings.filter(b => !b.built)
+    const playerTH = this.buildingSystem.getTownHall('player')
+    const aiTH = this.buildingSystem.getTownHall('ai')
 
-    // Always keep idle workers gathering
-    for (const worker of aiWorkers) {
-      if (worker.workerState === 'idle') {
-        const node = this.resourceSystem.nodes.find(n => !n.depleted)
-        if (node) this.unitSystem.commandGather(worker, node)
+    // Keep unfinished AI buildings assigned before starting new work.
+    for (const building of unfinishedBuildings) {
+      const assignedWorker = aiWorkers.find(worker => worker.workerState === 'building' && worker.targetBuilding === building)
+      if (assignedWorker) continue
+
+      const builder = idleWorkers.shift()
+        ?? aiWorkers.find(worker =>
+          worker.workerState === 'idle' ||
+          worker.workerState === 'gathering' ||
+          worker.workerState === 'returning'
+        )
+
+      if (builder) {
+        builder.workerState = 'idle'
+        builder.targetNode = null
+        builder.targetBuilding = null
+        this.unitSystem.commandBuild(builder, building)
       }
     }
+
+    // Resilience: replace dead workers and maintain a minimum labor force.
+    if (livingWorkers.length < 2 && aiTH && !this.unitSystem.trainingTimer) {
+      this.unitSystem.startTraining(aiTH, 'ai')
+    }
+
+    // Always keep idle workers gathering unless they are needed for building completion.
+    for (const worker of idleWorkers) {
+      const node = this.resourceSystem.nodes.find(n => !n.depleted)
+      if (node) this.unitSystem.commandGather(worker, node)
+    }
+
+    if (unfinishedBuildings.length > 0) return
 
     // Economy: farm first — food is needed for swordsman training
     if (!hasFarm && res.canAfford('ai', { wood: 60 })) {
@@ -110,34 +143,33 @@ export class AISystem {
     // Military: continuously train in all built barracks
     for (const b of builtBarracks) {
       if (this.unitSystem.getSoldierTraining(b)) continue
-      if (res.canAfford('ai', { metal: 50, food: 20 })) {
-        this.unitSystem.startTrainingSoldier(b, 'swordsman', 'ai')
-      } else if (res.canAfford('ai', { wood: 30, metal: 30 })) {
+      if (aiSoldiers.length >= 4 && res.canAfford('ai', { wood: 30, metal: 30 })) {
         this.unitSystem.startTrainingSoldier(b, 'archer', 'ai')
+      } else if (res.canAfford('ai', { metal: 50, food: 20 })) {
+        this.unitSystem.startTrainingSoldier(b, 'swordsman', 'ai')
       }
     }
 
     // Military: attack — threshold lowers if player has many soldiers
     const playerCount     = this.combatSystem.getSoldiersOfFaction('player').length
     const attackThreshold = playerCount >= 3 ? 3 : 5
-    if (aiSoldiers.length >= attackThreshold) {
-      const playerTH = this.buildingSystem.getTownHall('player')
-      if (playerTH) {
-        for (const soldier of aiSoldiers) {
-          if (soldier.state === 'idle') {
-            this.combatSystem.commandAttack([soldier], playerTH)
-          }
-        }
+    if (playerTH && aiSoldiers.length >= attackThreshold && this.attackCooldown <= 0) {
+      const wave = aiSoldiers.filter(soldier => soldier.state === 'idle')
+      if (wave.length > 0) {
+        this.combatSystem.commandAttack(wave, playerTH)
+        this.attackCooldown = this.ATTACK_WAVE_COOLDOWN
       }
     }
   }
 
   private buildAIBuilding(type: BuildingType): void {
     const cost = BUILDING_CONFIGS[type].cost
-    const cx   = AI_START_TILE.x
-    const cy   = AI_START_TILE.y
+    const aiWorkers = this.unitSystem.workers.filter(w => w.faction === 'ai')
+    const base = this.buildingSystem.getTownHall('ai')
+    const cx = base ? base.tileX : AI_START_TILE.x
+    const cy = base ? base.tileY : AI_START_TILE.y
 
-    for (let radius = 2; radius <= 8; radius++) {
+    for (let radius = 2; radius <= 10; radius++) {
       for (let dy = -radius; dy <= radius; dy++) {
         for (let dx = -radius; dx <= radius; dx++) {
           if (Math.abs(dx) !== radius && Math.abs(dy) !== radius) continue
@@ -153,8 +185,8 @@ export class AISystem {
             if (amount) this.resourceSystem.subtract('ai', rType as keyof typeof cost, amount)
           }
 
-          const builder = this.unitSystem.workers.find(w => w.faction === 'ai' && w.workerState === 'idle')
-            ?? this.unitSystem.workers.find(w => w.faction === 'ai')
+          const builder = aiWorkers.find(w => w.workerState === 'idle')
+            ?? aiWorkers.find(w => w.workerState === 'gathering' || w.workerState === 'returning')
           if (builder) this.unitSystem.commandBuild(builder, building)
           return
         }
