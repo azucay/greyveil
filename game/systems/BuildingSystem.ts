@@ -6,15 +6,22 @@ import type { BuildingType } from '@/types/buildings'
 import type { Faction } from '@/types/units'
 import type { Resources } from '@/types/resources'
 
+type ProductionAccum = {
+  farm: number
+  mineMetal: number
+  mineGold: number
+}
+
 export class BuildingSystem {
   private scene: Phaser.Scene
   private resourceSystem: ResourceSystem
   buildings: Map<string, Building> = new Map()
 
-  // Accumulators for passive production (float amounts)
-  private farmAccum: number = 0
-  private mineMetalAccum: number = 0
-  private mineGoldAccum: number = 0
+  // Accumulators for passive production (float amounts), separated by faction.
+  private productionAccum: Record<Faction, ProductionAccum> = {
+    player: { farm: 0, mineMetal: 0, mineGold: 0 },
+    ai: { farm: 0, mineMetal: 0, mineGold: 0 },
+  }
 
   constructor(scene: Phaser.Scene, resourceSystem: ResourceSystem) {
     this.scene = scene
@@ -57,44 +64,45 @@ export class BuildingSystem {
   }
 
   update(delta: number): void {
-    let resourcesChanged = false
+    let playerResourcesChanged = false
 
     for (const b of this.buildings.values()) {
-      if (!b.built || b.faction !== 'player') continue
+      if (!b.built) continue
+      const accum = this.productionAccum[b.faction]
 
       if (b.buildingType === 'farm') {
         // +5 food/s
-        this.farmAccum += (5 * delta) / 1000
-        const wholeFood = Math.floor(this.farmAccum)
+        accum.farm += (5 * delta) / 1000
+        const wholeFood = Math.floor(accum.farm)
         if (wholeFood > 0) {
-          this.farmAccum -= wholeFood
-          this.resourceSystem.add('player', 'food', wholeFood)
-          resourcesChanged = true
+          accum.farm -= wholeFood
+          this.resourceSystem.add(b.faction, 'food', wholeFood)
+          if (b.faction === 'player') playerResourcesChanged = true
         }
       }
 
       if (b.buildingType === 'mine') {
         // +2 metal/s
-        this.mineMetalAccum += (2 * delta) / 1000
-        const wholeMetal = Math.floor(this.mineMetalAccum)
+        accum.mineMetal += (2 * delta) / 1000
+        const wholeMetal = Math.floor(accum.mineMetal)
         if (wholeMetal > 0) {
-          this.mineMetalAccum -= wholeMetal
-          this.resourceSystem.add('player', 'metal', wholeMetal)
-          resourcesChanged = true
+          accum.mineMetal -= wholeMetal
+          this.resourceSystem.add(b.faction, 'metal', wholeMetal)
+          if (b.faction === 'player') playerResourcesChanged = true
         }
 
         // +0.5 gold/s
-        this.mineGoldAccum += (0.5 * delta) / 1000
-        const wholeGold = Math.floor(this.mineGoldAccum)
+        accum.mineGold += (0.5 * delta) / 1000
+        const wholeGold = Math.floor(accum.mineGold)
         if (wholeGold > 0) {
-          this.mineGoldAccum -= wholeGold
-          this.resourceSystem.add('player', 'gold', wholeGold)
-          resourcesChanged = true
+          accum.mineGold -= wholeGold
+          this.resourceSystem.add(b.faction, 'gold', wholeGold)
+          if (b.faction === 'player') playerResourcesChanged = true
         }
       }
     }
 
-    if (resourcesChanged) {
+    if (playerResourcesChanged) {
       EventBus.emit<Resources>('resources-updated', this.resourceSystem.getPlayerResources())
     }
 
