@@ -333,6 +333,21 @@ Commit + Push → Review → Merge to main
 - Der vorhandene Pfeil-Tween ist als allgemeiner `spawnArrow(scene, fromX, fromY, targetX, targetY)` wiederverwendbar.
 ---
 
+---
+### [ERI-8] KI-Basisbau diversifizieren und Angriffswellen — 2026-05-15
+**Was ich vorher hätte wissen sollen:**
+- AI-Ökonomie braucht dieselbe passive Farm-/Mine-Produktion wie der Spieler; sonst reichen Anfangsressourcen nur für wenige Gebäude/Einheiten.
+- Gebäudeplanung muss gebaute und im Bau befindliche Gebäude gemeinsam zählen, damit die KI keine doppelten Aufträge startet und trotzdem mehrere Zielgebäude bauen kann.
+
+**Fallstricke:**
+- Wenn `BuildingSystem.update()` nur `player`-Gebäude produziert, bleiben AI-Farmen/Minen optisch korrekt, aber strategisch wirkungslos.
+- Platzierungs-Fallbacks brauchen Mindestabstand plus einen engeren Notfall-Fallback, sonst blockieren wenige Hindernisse die komplette Expansion.
+
+**Nützliche Erkenntnisse:**
+- Zielzahlen nach Army-/Wave-Fortschritt reichen für sichtbare RTS-Expansion ohne neue AI-Architektur.
+- Angriffswellen sollten nur verfügbare Soldaten kommandieren und nach Cooldown weiterlaufen, während Kasernen unabhängig weiter trainieren.
+---
+
 Format:
 ```
 ---
