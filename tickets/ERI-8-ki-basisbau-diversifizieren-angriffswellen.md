@@ -1,6 +1,6 @@
 # ERI-8 — KI-Basisbau diversifizieren und Angriffswellen wiederherstellen
 
-Status: 🔄 In Review
+Status: ✅ Done
 Phase: Phase 2 / Gameplay Loop
 
 ## Ziel
