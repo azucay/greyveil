@@ -2,7 +2,7 @@
 
 ## Projekt-Übersicht
 
-Greyveil ist ein Fantasy-RTS im Browser, gebaut mit Phaser.js und Next.js. Spieler bauen eine Basis, sammeln Ressourcen, bilden Einheiten aus und bekämpfen einen KI-Gegner. Das Kern-Differenzierungsmerkmal ist ein Hybrid-AI-Gegner: regelbasierte Mikro-Steuerung kombiniert mit Claude API für Makrostrategie-Entscheidungen. MVP läuft vollständig im Browser, ist PWA-fähig und verwendet ausschließlich die Phaser.js Graphics API für alle visuellen Elemente.
+Greyveil ist ein Fantasy-RTS im Browser, gebaut mit Phaser.js und Next.js. Spieler bauen eine Basis, sammeln Ressourcen, bilden Einheiten aus und bekämpfen einen KI-Gegner. Das Kern-Differenzierungsmerkmal ist ein Hybrid-AI-Gegner: regelbasierte Mikro-Steuerung kombiniert mit Claude API für Makrostrategie-Entscheidungen. MVP läuft vollständig im Browser, war ursprünglich ausschließlich Phaser.js Graphics API, nutzt inzwischen aber eine erste PNG-Asset-Pipeline unter `public/assets/greyveil/war2/` für Warcraft-II-artige 2D-Sprites.
 
 ---
 
@@ -53,7 +53,7 @@ Greyveil ist ein Fantasy-RTS im Browser, gebaut mit Phaser.js und Next.js. Spiel
 ## Coding Conventions
 
 - **TypeScript strict mode** — kein `any`, kein `@ts-ignore` ohne Kommentar mit Begründung
-- **Keine externen Assets im MVP** — ausschließlich Phaser.js Graphics API (geometrische Formen)
+- **Assets:** Neue Visuals laufen über die zentrale Registry `game/assets/War2Assets.ts`; Entities behalten Graphics-Fallbacks für fehlende PNGs
 - Komponenten in `/components`, Game-Logik in `/game`, React-Seiten in `/app`
 - Dateinamen: PascalCase für Klassen/Komponenten, camelCase für Utilities
 - Phaser-Entities als TypeScript-Klassen, die `Phaser.GameObjects.Container` erweitern
@@ -63,29 +63,20 @@ Greyveil ist ein Fantasy-RTS im Browser, gebaut mit Phaser.js und Next.js. Spiel
 
 ---
 
-## Asset-Konventionen (MVP)
+## Asset-Konventionen
 
-**Bewusste Entscheidung: Geometric Placeholders**
+**Aktuelle Entscheidung: echte PNG-Sprites + Graphics-Fallback**
 
-Das MVP verwendet ausschließlich die Phaser.js Graphics API. Kein externes Asset-Pack wird vorgezogen.
+Greyveil nutzt jetzt eine erste originale 2D-Sprite-Pipeline unter `public/assets/greyveil/war2/`, geladen über `game/assets/War2Assets.ts`. Der Stil orientiert sich an klassischer Warcraft-II-Lesbarkeit: gemalte 2D-Tiles, klare Silhouetten, Teamfarben und kleine RTS-Sprites. Die alten Phaser-Graphics-Formen bleiben als Fallback erhalten, falls ein Asset fehlt.
 
-| Element | Darstellung | Farbe |
+| Element | Primäre Darstellung | Fallback |
 |---|---|---|
-| Spieler-Einheiten | Kreis | Blau (#3B82F6) |
-| Gegner-Einheiten | Kreis | Rot (#EF4444) |
-| Rathaus | Rechteck | Dunkelgrau (#374151) |
-| Kaserne | Rechteck | Braun (#92400E) |
-| Farm | Rechteck | Grün (#166534) |
-| Mine | Rechteck | Dunkelbraun (#451A03) |
-| Holz-Ressource | Kleines Quadrat | Grün (#4ADE80) |
-| Stein-Ressource | Kleines Quadrat | Grau (#9CA3AF) |
-| Metall-Ressource | Kleines Quadrat | Silber (#CBD5E1) |
-| Gold-Ressource | Kleines Quadrat | Gelb (#FCD34D) |
-| Gras-Terrain | Tile | Hellgrün (#86EFAC) |
-| Wasser-Terrain | Tile | Blau (#60A5FA) |
-| Berg-Terrain | Tile | Grau (#6B7280) |
+| Spieler-/Gegner-Einheiten | PNG-Sprites mit Team-Tint | Graphics-Kreis/Form |
+| Gebäude | PNG-Sprites pro Gebäudetyp | gezeichnete Gebäudegrafik |
+| Wald | Baum-PNGs pro Waldkachel | gezeichnete Baumformen |
+| Terrain | PNG-Tiles | einfache Farbtiles |
 
-Asset-Swap auf echte Grafiken (z.B. Kenney.nl Medieval Pack) ist Post-MVP in separatem Ticket geplant. Placeholders sind in `/game/entities` und `/game/scenes` isoliert — kein Refactoring der Spiellogik nötig.
+Nächste Stufe: Sprite-Sheets/Texture-Atlas für Walk/Attack/Harvest/Build/Repair-Animationen und Terrain-Übergänge.
 
 ---
 
@@ -360,3 +351,43 @@ Format:
 - ...
 ---
 ```
+
+---
+### [T030] Visual Polish, Waldabbau und Reparaturen — 2026-05-21
+**Was ich vorher hätte wissen sollen:**
+- Holz-Nodes können innerhalb des bestehenden ResourceSystem als kleine Baumgruppen gezeichnet werden; externe Assets sind weiterhin nicht nötig.
+- Gebäude-Selektion sollte HP/maxHp/damaged mitemittieren, damit die React-UI Reparatur sauber anbieten kann.
+**Fallstricke:**
+- TypeScript-Narrowing in der HUD-Union muss auf `damaged in selection` prüfen; `hp in selection` schließt Soldaten mit ein.
+- Resource-Grafiken müssen beim partiellen Sammeln explizit neu gezeichnet werden, nicht nur bei vollständiger Erschöpfung.
+**Nützliche Erkenntnisse:**
+- Reparatur passt gut in denselben Worker-State/Pathfinding-Loop wie Bauen: `moving_to_repair → repairing → idle`.
+- Kostenbalancing sollte in `types/buildings.ts` und `types/units.ts` zentral bleiben; Legacy-HUDs mit statischen Labels müssen zusätzlich synchronisiert werden.
+---
+
+---
+### [T030b] Große Wald-Cluster und Durcharbeiten — 2026-05-21
+**Was ich vorher hätte wissen sollen:**
+- Wald kann als ResourceNode-Cluster modelliert werden, solange `MapSystem.setWalkable()` die Tile-Begehbarkeit beim Platzieren/Abholzen synchron hält.
+- `findPath()` leitet bereits auf das nächste begehbare Feld um; dadurch kann ein Arbeiter einen blockierenden Wald-Tile vom Rand aus abbauen.
+**Fallstricke:**
+- ResourceSystem braucht eine MapSystem-Referenz, wenn Ressourcennodes die Pathfinding-Begehbarkeit ändern.
+- Bauplatzierung muss neben Terrain und Gebäuden auch aktive Ressourcenfelder prüfen, sonst kann man auf Nicht-Holz-Nodes bauen.
+**Nützliche Erkenntnisse:**
+- Große Wälder funktionieren als mehrere zusammenhängende 1-Tile-Nodes besser als ein einzelner großer Node: Visuals, Abbaufortschritt und Pfadfreigabe bleiben simpel.
+---
+
+---
+
+## Nexus Operating Guard
+
+These rules apply to Nexus/Hermes agents working in this repo:
+
+1. **Mode first:** identify whether the task is Plan, Implement, Review, Operate, or Research.
+2. **Read before edit:** read this `AGENTS.md`, relevant tickets/spec/docs, and existing code patterns before changing files.
+3. **Small scope:** keep changes focused; do not refactor unrelated code.
+4. **Role discipline for larger work:** TL plans, Coder implements, Tester verifies with commands, Reviewer checks diff/architecture. Do not claim review/test success without evidence.
+5. **Verification required:** run the repo's documented checks before reporting done; if checks cannot run, state why.
+6. **Preview/deploy discipline:** prefer local preview for iteration; use Vercel/production only when appropriate and report preview vs production clearly.
+7. **Cost guard:** do not introduce background AI jobs, scheduled agents, or token-consuming automations without explicit approval and registry entry.
+8. **Knowledge hygiene:** reusable workflow → skill; project architecture → docs/wiki; user preference → memory; temporary progress → ticket/session only.

@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser'
 import { TILE_SIZE, MAP_WIDTH, MAP_HEIGHT, PLAYER_START_TILE, AI_START_TILE } from '@/game/constants'
+import { WAR2_ASSETS } from '@/game/assets/War2Assets'
 import type { GameMap, Tile, TileType } from '@/types/map'
 
 interface PathNode {
@@ -36,6 +37,12 @@ export class MapSystem {
 
   isWalkable(x: number, y: number): boolean {
     return this.getTile(x, y)?.walkable ?? false
+  }
+
+  setWalkable(x: number, y: number, walkable: boolean): void {
+    const tile = this.getTile(x, y)
+    if (!tile) return
+    tile.walkable = walkable
   }
 
   findPath(fromTileX: number, fromTileY: number, toTileX: number, toTileY: number): { worldX: number; worldY: number }[] {
@@ -107,7 +114,12 @@ export class MapSystem {
   render(scene: Phaser.Scene): void {
     const totalWidth = MAP_WIDTH * TILE_SIZE
     const totalHeight = MAP_HEIGHT * TILE_SIZE
+    const rt = scene.add.renderTexture(0, 0, totalWidth, totalHeight)
+    rt.setOrigin(0, 0)
 
+    const terrainKeys: string[] = [WAR2_ASSETS.terrain.grass, WAR2_ASSETS.terrain.water, WAR2_ASSETS.terrain.mountain]
+    const hasTerrainAssets = terrainKeys.every(key => scene.textures.exists(key))
+    const stamp = hasTerrainAssets ? scene.add.image(0, 0, WAR2_ASSETS.terrain.grass).setOrigin(0, 0).setVisible(false) : null
     const gfx = scene.add.graphics()
 
     for (let y = 0; y < MAP_HEIGHT; y++) {
@@ -115,18 +127,24 @@ export class MapSystem {
         const tile = this.map[y][x]
         const px = x * TILE_SIZE
         const py = y * TILE_SIZE
+        const key = WAR2_ASSETS.terrain[tile.type]
 
-        gfx.fillStyle(TILE_BORDER_COLORS[tile.type])
-        gfx.fillRect(px, py, TILE_SIZE, TILE_SIZE)
-
-        gfx.fillStyle(TILE_COLORS[tile.type])
-        gfx.fillRect(px + 1, py + 1, TILE_SIZE - 2, TILE_SIZE - 2)
+        if (stamp && scene.textures.exists(key)) {
+          stamp.setTexture(key)
+          stamp.setPosition(px, py)
+          rt.draw(stamp)
+        } else {
+          gfx.clear()
+          gfx.fillStyle(TILE_BORDER_COLORS[tile.type])
+          gfx.fillRect(px, py, TILE_SIZE, TILE_SIZE)
+          gfx.fillStyle(TILE_COLORS[tile.type])
+          gfx.fillRect(px + 1, py + 1, TILE_SIZE - 2, TILE_SIZE - 2)
+          rt.draw(gfx, 0, 0)
+        }
       }
     }
 
-    const rt = scene.add.renderTexture(0, 0, totalWidth, totalHeight)
-    rt.setOrigin(0, 0)
-    rt.draw(gfx, 0, 0)
+    if (stamp) stamp.destroy()
     gfx.destroy()
     rt.setDepth(0)
   }

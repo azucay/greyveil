@@ -24,6 +24,8 @@
 | ERI-1 | Doppelte Baufortschrittsanzeige bei Gebäuden entfernen | Polish/MVP | ✅ Done |
 | T029 | Wachturm als defensives Gebäude hinzufügen | Phase 2 | ✅ Done |
 | ERI-8 | KI-Basisbau diversifizieren und Angriffswellen wiederherstellen | Phase 2 | ✅ Done |
+| T030 | Visual Polish, Waldabbau, Reparaturen und Spielgefühl | Polish/MVP | ✅ Done |
+| T031 | Warcraft-2-artige 2D-Asset-Pipeline | Visuals/Post-MVP | 🔄 In Progress |
 
 ---
 

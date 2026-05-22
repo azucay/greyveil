@@ -6,6 +6,7 @@ import { UnitSystem } from '@/game/systems/UnitSystem'
 import { CombatSystem } from '@/game/systems/CombatSystem'
 import { MapSystem } from '@/game/systems/MapSystem'
 import { BUILDING_CONFIGS } from '@/types/buildings'
+import { SOLDIER_CONFIGS } from '@/types/units'
 import { AI_START_TILE, TILE_SIZE } from '@/game/constants'
 import type { BuildingType } from '@/types/buildings'
 import type { ResourceCost, ResourceType } from '@/types/resources'
@@ -151,11 +152,13 @@ export class AISystem {
     for (const b of builtBarracks) {
       if (this.unitSystem.getSoldierTraining(b)) continue
       const nextType = aiSoldiers.length % 3 === 2 ? 'archer' : 'swordsman'
-      if (nextType === 'archer' && res.canAfford('ai', { wood: 30, metal: 30 })) {
+      const archerCost = SOLDIER_CONFIGS.archer.cost
+      const swordsmanCost = SOLDIER_CONFIGS.swordsman.cost
+      if (nextType === 'archer' && res.canAfford('ai', archerCost)) {
         this.unitSystem.startTrainingSoldier(b, 'archer', 'ai')
-      } else if (res.canAfford('ai', { metal: 50, food: 20 })) {
+      } else if (res.canAfford('ai', swordsmanCost)) {
         this.unitSystem.startTrainingSoldier(b, 'swordsman', 'ai')
-      } else if (res.canAfford('ai', { wood: 30, metal: 30 })) {
+      } else if (res.canAfford('ai', archerCost)) {
         this.unitSystem.startTrainingSoldier(b, 'archer', 'ai')
       }
     }

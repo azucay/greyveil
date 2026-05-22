@@ -9,7 +9,6 @@ import type { Resources } from '@/types/resources'
 type ProductionAccum = {
   farm: number
   mineMetal: number
-  mineGold: number
 }
 
 export class BuildingSystem {
@@ -19,8 +18,8 @@ export class BuildingSystem {
 
   // Accumulators for passive production (float amounts), separated by faction.
   private productionAccum: Record<Faction, ProductionAccum> = {
-    player: { farm: 0, mineMetal: 0, mineGold: 0 },
-    ai: { farm: 0, mineMetal: 0, mineGold: 0 },
+    player: { farm: 0, mineMetal: 0 },
+    ai: { farm: 0, mineMetal: 0 },
   }
 
   constructor(scene: Phaser.Scene, resourceSystem: ResourceSystem) {
@@ -42,6 +41,10 @@ export class BuildingSystem {
 
   removeBuilding(b: Building): void {
     this.buildings.delete(`${b.tileX},${b.tileY}`)
+  }
+
+  hasBuilding(b: Building): boolean {
+    return this.buildings.get(`${b.tileX},${b.tileY}`) === b
   }
 
   getTownHall(faction: Faction): Building | null {
@@ -82,21 +85,12 @@ export class BuildingSystem {
       }
 
       if (b.buildingType === 'mine') {
-        // +2 metal/s
+        // +2 metal/s; gold only comes from worker gathering gold nodes.
         accum.mineMetal += (2 * delta) / 1000
         const wholeMetal = Math.floor(accum.mineMetal)
         if (wholeMetal > 0) {
           accum.mineMetal -= wholeMetal
           this.resourceSystem.add(b.faction, 'metal', wholeMetal)
-          if (b.faction === 'player') playerResourcesChanged = true
-        }
-
-        // +0.5 gold/s
-        accum.mineGold += (0.5 * delta) / 1000
-        const wholeGold = Math.floor(accum.mineGold)
-        if (wholeGold > 0) {
-          accum.mineGold -= wholeGold
-          this.resourceSystem.add(b.faction, 'gold', wholeGold)
           if (b.faction === 'player') playerResourcesChanged = true
         }
       }

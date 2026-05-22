@@ -1,0 +1,19 @@
+{
+  "style": "2D muted top-down RTS sprite direction inspired by classic Warcraft II readability; original placeholder assets, not copied",
+  "assets": [
+    "terrain-grass",
+    "terrain-water",
+    "terrain-mountain",
+    "tree-pine",
+    "townhall",
+    "barracks",
+    "farm",
+    "mine",
+    "watchtower",
+    "worker",
+    "soldier",
+    "swordsman",
+    "archer"
+  ],
+  "tileSize": 48
+}

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { EventBus } from '@/game/EventBus'
 import { BUILDING_CONFIGS } from '@/types/buildings'
 import { SOLDIER_CONFIGS } from '@/types/units'
-import type { GameSelection, SoldierType } from '@/types/units'
+import type { GameSelection, SoldierType, TrainableUnitType } from '@/types/units'
 import type { BuildingType } from '@/types/buildings'
 import type { Resources } from '@/types/resources'
 import { formatResourceCost, RESOURCE_SYMBOLS } from '@/types/resources'
@@ -26,14 +26,29 @@ const UNIT_NAMES: Record<string, string> = {
 const WORKER_STATE_DE: Record<string, string> = {
   idle: 'Wartet', moving: 'Läuft', gathering: 'Sammelt',
   returning: 'Kehrt zurück', building: 'Baut', moving_to_build: 'Zum Bau',
+  repairing: 'Repariert', moving_to_repair: 'Zur Reparatur',
 }
 
-const BUILD_BUTTONS: { type: BuildingType; icon: string }[] = [
-  { type: 'farm',     icon: '🌾' },
-  { type: 'mine',     icon: '⛏️' },
-  { type: 'barracks', icon: '🛡️' },
-  { type: 'watchtower', icon: '🗼' },
+const QUEUE_ICONS: Record<TrainableUnitType, string> = {
+  worker: '👷',
+  swordsman: '⚔️',
+  archer: '🏹',
+}
+
+const BUILD_BUTTONS: { type: BuildingType; icon: string; shortcut: string }[] = [
+  { type: 'farm',     icon: '🌾', shortcut: 'F' },
+  { type: 'mine',     icon: '⛏️', shortcut: 'M' },
+  { type: 'barracks', icon: '🛡️', shortcut: 'K' },
+  { type: 'watchtower', icon: '🗼', shortcut: 'W' },
 ]
+
+const BUILDING_IMAGES: Record<BuildingType, string> = {
+  townhall: '/assets/greyveil/war2/townhall.png',
+  farm: '/assets/greyveil/war2/farm.png',
+  mine: '/assets/greyveil/war2/mine.png',
+  barracks: '/assets/greyveil/war2/barracks.png',
+  watchtower: '/assets/greyveil/war2/watchtower.png',
+}
 
 type BuildPreviewState = { type: BuildingType; ready: boolean; valid: boolean } | null
 
@@ -87,6 +102,30 @@ export default function LeftPanel({ resources }: Props) {
     </div>
   )
 
+  const queueIcons = (queue: TrainableUnitType[]) => (
+    <div style={{ display: 'flex', gap: '3px', marginTop: '4px' }}>
+      {[0, 1, 2].map(i => (
+        <span
+          key={i}
+          style={{
+            width: '21px',
+            height: '21px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: '4px',
+            border: '1px solid rgba(255,255,255,0.14)',
+            background: queue[i] ? 'rgba(167,139,250,0.18)' : 'rgba(255,255,255,0.04)',
+            color: queue[i] ? '#e9d5ff' : '#374151',
+            fontSize: '12px',
+          }}
+        >
+          {queue[i] ? QUEUE_ICONS[queue[i]] : '·'}
+        </span>
+      ))}
+    </div>
+  )
+
   const statRow = (label: string, value: string | number) => (
     <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#9ca3af', marginBottom: '2px' }}>
       <span>{label}</span>
@@ -113,6 +152,23 @@ export default function LeftPanel({ resources }: Props) {
           <span style={{ fontSize: '20px', lineHeight: 1 }}>{icon}</span>
           <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#f3f4f6' }}>{name}</span>
         </div>
+
+        {'damaged' in selection && (
+          <>
+            <div style={{ fontSize: '10px', color: '#9ca3af', marginBottom: '2px' }}>
+              HP {selection.hp}/{selection.maxHp}
+            </div>
+            {progressBar(selection.hp / selection.maxHp, selection.hp / selection.maxHp > 0.5 ? '#22c55e' : selection.hp / selection.maxHp > 0.25 ? '#f59e0b' : '#ef4444')}
+            {selection.damaged && selection.built && (
+              <button
+                style={{ ...btn(true), margin: '4px 0', background: 'rgba(34,197,94,0.16)', border: '1px solid rgba(34,197,94,0.5)', color: '#bbf7d0' }}
+                onClick={() => EventBus.emit<void>('request-repair-building', undefined)}
+              >
+                🔧 Reparieren
+              </button>
+            )}
+          </>
+        )}
 
         {type === 'worker' && (
           <>
@@ -155,17 +211,17 @@ export default function LeftPanel({ resources }: Props) {
 
         {type === 'townhall' && (
           <>
-            {statRow('HP', BUILDING_CONFIGS.townhall.hp)}
             <button
-              style={{ ...btn(resources.wood >= 50 && training === null), marginTop: '4px' }}
-              onClick={() => resources.wood >= 50 && training === null && EventBus.emit<void>('request-train-worker', undefined)}
+              style={{ ...btn(resources.food >= 25 && selection.queue.length < 3), marginTop: '4px' }}
+              onClick={() => resources.food >= 25 && selection.queue.length < 3 && EventBus.emit<void>('request-train-worker', undefined)}
             >
-              + Arbeiter ({RESOURCE_SYMBOLS.wood}50)
+              + Arbeiter ({RESOURCE_SYMBOLS.food}25)
             </button>
-            {training !== null && (
+            {queueIcons(selection.queue)}
+            {(selection.training ?? training) !== null && (
               <>
                 <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '4px' }}>Training…</div>
-                {progressBar(training.progress)}
+                {progressBar((selection.training ?? training)?.progress ?? 0)}
               </>
             )}
           </>
@@ -174,19 +230,20 @@ export default function LeftPanel({ resources }: Props) {
         {type === 'barracks' && (() => {
           if (!selection.built) return <div style={{ fontSize: '10px', color: '#9ca3af' }}>Im Bau…</div>
           const t = selection.training
-          const canSword  = resources.metal >= 50 && resources.food >= 20 && !t
-          const canArcher = resources.wood >= 30 && resources.metal >= 30 && !t
+          const queueOpen = selection.queue.length < 3
+          const canSword  = resources.metal >= 45 && resources.food >= 25 && queueOpen
+          const canArcher = resources.wood >= 35 && resources.food >= 15 && resources.metal >= 20 && queueOpen
           return (
             <>
-              {statRow('HP', BUILDING_CONFIGS.barracks.hp)}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '4px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '4px' }}>
                 <button style={btn(canSword)} onClick={() => canSword && EventBus.emit<SoldierType>('request-train-soldier', 'swordsman')}>
-                  ⚔️ Schwert ({RESOURCE_SYMBOLS.metal}50 {RESOURCE_SYMBOLS.food}20)
+                  ⚔️ Schwert ({RESOURCE_SYMBOLS.metal}45 {RESOURCE_SYMBOLS.food}25)
                 </button>
                 <button style={btn(canArcher)} onClick={() => canArcher && EventBus.emit<SoldierType>('request-train-soldier', 'archer')}>
-                  🏹 Bogner ({RESOURCE_SYMBOLS.wood}30 {RESOURCE_SYMBOLS.metal}30)
+                  🏹 Bogner ({RESOURCE_SYMBOLS.wood}35 {RESOURCE_SYMBOLS.food}15 {RESOURCE_SYMBOLS.metal}20)
                 </button>
               </div>
+              {queueIcons(selection.queue)}
               {t && (
                 <>
                   <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '4px' }}>
@@ -201,21 +258,19 @@ export default function LeftPanel({ resources }: Props) {
 
         {type === 'farm' && (
           <>
-            {statRow('HP', BUILDING_CONFIGS.farm.hp)}
             {statRow('Produktion', selection.built ? `+5 ${RESOURCE_SYMBOLS.food}/s` : 'Im Bau…')}
           </>
         )}
 
         {type === 'mine' && (
           <>
-            {statRow('HP', BUILDING_CONFIGS.mine.hp)}
             {statRow('Produktion', selection.built ? `+2 ${RESOURCE_SYMBOLS.metal}/s` : 'Im Bau…')}
+            {selection.built && statRow('Gold', 'nur durch Abbau')}
           </>
         )}
 
         {type === 'watchtower' && (
           <>
-            {statRow('HP', BUILDING_CONFIGS.watchtower.hp)}
             {statRow('Angriff', selection.built ? `${BUILDING_CONFIGS.watchtower.attackDamage} Schaden` : 'Im Bau…')}
             {statRow('Reichweite', '5.5 Fel.')}
           </>
@@ -258,7 +313,7 @@ export default function LeftPanel({ resources }: Props) {
         {buildMode !== null ? (
           <>
             <div style={{ fontSize: '10px', color: '#fbbf24', marginBottom: '4px' }}>
-              {buildPreview?.ready ? 'Vorschau prüfen' : 'Position antippen'}
+              {buildPreview?.ready ? 'Vorschau fixiert' : 'Position wählen'}
             </div>
             {buildPreview?.ready && (
               <button
@@ -285,7 +340,7 @@ export default function LeftPanel({ resources }: Props) {
           </>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-            {BUILD_BUTTONS.map(({ type, icon }) => {
+            {BUILD_BUTTONS.map(({ type, icon, shortcut }) => {
               const affordable = canAffordBuilding(type)
               return (
                 <button
@@ -293,8 +348,26 @@ export default function LeftPanel({ resources }: Props) {
                   style={btn(affordable)}
                   onClick={() => affordable && EventBus.emit<BuildingType>('start-build', type)}
                 >
-                  {icon} {UNIT_NAMES[type]}<br />
-                  <span style={{ fontSize: '9px', color: affordable ? '#9ca3af' : '#374151' }}>{formatResourceCost(BUILDING_CONFIGS[type].cost)}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        width: '24px',
+                        height: '24px',
+                        flexShrink: 0,
+                        backgroundImage: `url(${BUILDING_IMAGES[type]})`,
+                        backgroundSize: 'contain',
+                        backgroundRepeat: 'no-repeat',
+                        backgroundPosition: 'center',
+                        imageRendering: 'pixelated',
+                        opacity: affordable ? 1 : 0.35,
+                      }}
+                    />
+                    <span>
+                      {icon} {UNIT_NAMES[type]} <span style={{ color: '#fbbf24' }}>[{shortcut}]</span><br />
+                      <span style={{ fontSize: '9px', color: affordable ? '#9ca3af' : '#374151' }}>{formatResourceCost(BUILDING_CONFIGS[type].cost)}</span>
+                    </span>
+                  </span>
                 </button>
               )
             })}

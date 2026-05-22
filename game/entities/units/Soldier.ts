@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser'
+import { WAR2_ASSETS } from '@/game/assets/War2Assets'
 import { SOLDIER_CONFIGS } from '@/types/units'
 import type { SoldierType, SoldierState, Faction } from '@/types/units'
 import type { Building } from '@/game/entities/buildings/Building'
@@ -22,6 +23,7 @@ export class Soldier extends Phaser.GameObjects.Container {
   private waypoints: { x: number; y: number }[] = []
   private onArrivedCallback?: () => void
 
+  private sprite: Phaser.GameObjects.Image | null = null
   private bodyGfx: Phaser.GameObjects.Graphics
   private hpBarGfx: Phaser.GameObjects.Graphics
   private selectionGfx: Phaser.GameObjects.Graphics
@@ -39,31 +41,41 @@ export class Soldier extends Phaser.GameObjects.Container {
     this.speed = cfg.speed
 
     this.bodyGfx = scene.add.graphics()
+    const spriteKey = soldierType === 'archer' ? WAR2_ASSETS.units.archer : WAR2_ASSETS.units.swordsman
+    const fallbackKey = WAR2_ASSETS.units.soldier
+    const textureKey = scene.textures.exists(spriteKey) ? spriteKey : fallbackKey
+    if (scene.textures.exists(textureKey)) {
+      this.sprite = scene.add.image(0, 0, textureKey).setOrigin(0.5, 0.5).setScale(soldierType === 'archer' ? 0.74 : 0.78)
+      if (faction === 'ai') this.sprite.setTint(0xff9d9d)
+    }
     this.hpBarGfx = scene.add.graphics()
     this.selectionGfx = scene.add.graphics()
 
     const color = faction === 'player' ? 0x3b82f6 : 0xef4444
     const accent = faction === 'player' ? 0xdbeafe : 0xfee2e2
-    this.bodyGfx.fillStyle(color, 1)
-    if (soldierType === 'swordsman') {
-      this.bodyGfx.fillCircle(0, 0, cfg.radius)
-      this.bodyGfx.lineStyle(3, accent, 1)
-      this.bodyGfx.lineBetween(-4, 7, 7, -8)
-      this.bodyGfx.lineStyle(2, accent, 0.9)
-      this.bodyGfx.lineBetween(-8, 2, 2, 8)
-    } else {
-      this.bodyGfx.fillTriangle(0, -cfg.radius - 1, cfg.radius + 2, cfg.radius, -cfg.radius - 2, cfg.radius)
-      this.bodyGfx.lineStyle(2, accent, 1)
-      this.bodyGfx.beginPath()
-      this.bodyGfx.arc(0, 1, cfg.radius + 2, -1.15, 1.15, false)
-      this.bodyGfx.strokePath()
-      this.bodyGfx.lineBetween(5, -6, 5, 8)
+    if (!this.sprite) {
+      this.bodyGfx.fillStyle(color, 1)
+      if (soldierType === 'swordsman') {
+        this.bodyGfx.fillCircle(0, 0, cfg.radius)
+        this.bodyGfx.lineStyle(3, accent, 1)
+        this.bodyGfx.lineBetween(-4, 7, 7, -8)
+        this.bodyGfx.lineStyle(2, accent, 0.9)
+        this.bodyGfx.lineBetween(-8, 2, 2, 8)
+      } else {
+        this.bodyGfx.fillTriangle(0, -cfg.radius - 1, cfg.radius + 2, cfg.radius, -cfg.radius - 2, cfg.radius)
+        this.bodyGfx.lineStyle(2, accent, 1)
+        this.bodyGfx.beginPath()
+        this.bodyGfx.arc(0, 1, cfg.radius + 2, -1.15, 1.15, false)
+        this.bodyGfx.strokePath()
+        this.bodyGfx.lineBetween(5, -6, 5, 8)
+      }
     }
 
     this.selectionGfx.lineStyle(2, 0xffffff, 1)
     this.selectionGfx.strokeCircle(0, 0, cfg.radius + 4)
     this.selectionGfx.setVisible(false)
 
+    if (this.sprite) this.add(this.sprite)
     this.add(this.bodyGfx)
     this.add(this.hpBarGfx)
     this.add(this.selectionGfx)
@@ -108,6 +120,7 @@ export class Soldier extends Phaser.GameObjects.Container {
 
   playAttackFeedback(targetX: number, targetY: number): void {
     const angle = Math.atan2(targetY - this.y, targetX - this.x)
+    this.faceAngle(angle, 0.35)
     const lunge = this.soldierType === 'swordsman' ? 5 : 2
     this.scene.tweens.add({
       targets: this,
@@ -119,6 +132,14 @@ export class Soldier extends Phaser.GameObjects.Container {
       yoyo: true,
       ease: 'Sine.easeOut',
     })
+  }
+
+  private faceAngle(angle: number, step = 0.14): void {
+    if (this.sprite) {
+      this.sprite.rotation = Phaser.Math.Angle.RotateTo(this.sprite.rotation, angle, step)
+    } else {
+      this.bodyGfx.rotation = Phaser.Math.Angle.RotateTo(this.bodyGfx.rotation, angle, step)
+    }
   }
 
   drawHpBar(): void {
@@ -162,6 +183,7 @@ export class Soldier extends Phaser.GameObjects.Container {
       const ratio = Math.min(speed / dist, 1)
       this.x += dx * ratio
       this.y += dy * ratio
+      this.faceAngle(Math.atan2(dy, dx))
     }
   }
 

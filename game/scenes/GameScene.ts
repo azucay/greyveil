@@ -21,7 +21,10 @@ type BuildPreview = {
   tileX: number
   tileY: number
   valid: boolean
+  pinned: boolean
   gfx: Phaser.GameObjects.Graphics
+  confirmText: Phaser.GameObjects.Text
+  cancelText: Phaser.GameObjects.Text
 }
 
 export class GameScene extends Phaser.Scene {
@@ -46,16 +49,31 @@ export class GameScene extends Phaser.Scene {
   private selectedSoldiers: Soldier[] = []
   buildMode: BuildingType | null = null
   private buildPreview: BuildPreview | null = null
+  private lastSoldierTap: { soldier: Soldier; time: number } | null = null
   private selectionEmitTimer = 0
+  private audioContext: AudioContext | null = null
+  private eventDisposers: (() => void)[] = []
 
   constructor() { super({ key: 'GameScene' }) }
 
+  private onBus<T>(event: string, callback: (data: T) => void): void {
+    EventBus.on<T>(event, callback)
+    this.eventDisposers.push(() => EventBus.off<T>(event, callback))
+  }
+
+  private cleanupEventBus(): void {
+    for (const dispose of this.eventDisposers) dispose()
+    this.eventDisposers = []
+  }
+
   create(): void {
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.cleanupEventBus())
+
     this.mapSystem = new MapSystem()
     this.mapSystem.render(this)
 
     this.resourceSystem = new ResourceSystem()
-    this.resourceSystem.placeNodes(this, this.mapSystem.getMap())
+    this.resourceSystem.placeNodes(this, this.mapSystem.getMap(), this.mapSystem)
 
     this.buildingSystem = new BuildingSystem(this, this.resourceSystem)
     this.combatSystem = new CombatSystem(this.mapSystem)
@@ -78,27 +96,36 @@ export class GameScene extends Phaser.Scene {
     this.setupKeyboard()
     this.setupDragPanning()
 
-    EventBus.on<BuildingType>('start-build', (type) => {
+    this.onBus<BuildingType>('start-build', (type) => {
       this.setBuildMode(type)
     })
-    EventBus.on<void>('cancel-build', () => {
+    this.onBus<void>('cancel-build', () => {
       this.cancelBuildMode()
     })
-    EventBus.on<void>('confirm-build', () => {
+    this.onBus<void>('confirm-build', () => {
       this.confirmBuildPreview()
     })
-    EventBus.on<void>('request-train-worker', () => {
+    this.onBus<void>('request-train-worker', () => {
       if (this.selectedBuilding?.buildingType === 'townhall') {
         this.unitSystem.startTraining(this.selectedBuilding)
       }
     })
-    EventBus.on<SoldierType>('request-train-soldier', (type) => {
+    this.onBus<SoldierType>('request-train-soldier', (type) => {
       if (this.selectedBuilding?.buildingType === 'barracks' && this.selectedBuilding.built) {
         this.unitSystem.startTrainingSoldier(this.selectedBuilding, type)
       }
     })
+    this.onBus<void>('request-repair-building', () => {
+      if (!this.selectedBuilding || !this.buildingSystem.hasBuilding(this.selectedBuilding) || this.selectedBuilding.faction !== 'player' || !this.selectedBuilding.damaged) return
+      const repairer = this.selectedWorker ?? this.unitSystem.workers.find(w => w.workerState === 'idle' && w.faction === 'player') ?? null
+      if (repairer) {
+        this.unitSystem.commandRepair(repairer, this.selectedBuilding)
+        this.playTone(520, 0.06, 'sine')
+        this.showCommandPulse(this.selectedBuilding.x, this.selectedBuilding.y, 0x22c55e)
+      }
+    })
     // T11: select all player soldiers
-    EventBus.on<void>('select-all-soldiers', () => {
+    this.onBus<void>('select-all-soldiers', () => {
       this.clearSelection()
       this.selectedSoldiers = this.combatSystem.getSoldiersOfFaction('player')
       for (const s of this.selectedSoldiers) s.setSelected(true)
@@ -119,14 +146,17 @@ export class GameScene extends Phaser.Scene {
     if (this.selectionEmitTimer >= 500) {
       this.selectionEmitTimer = 0
 
-      // T11: prune dead soldiers from selection
+      // T11: prune dead soldiers and stale destroyed buildings from selection
       this.selectedSoldiers = this.selectedSoldiers.filter(s => s.state !== 'dead')
+      if (this.selectedBuilding && !this.buildingSystem.hasBuilding(this.selectedBuilding)) {
+        this.selectedBuilding.setSelected(false)
+        this.selectedBuilding = null
+      }
 
       if (this.selectedWorker) {
         EventBus.emit<GameSelection>('selection-changed', { type: 'worker', workerState: this.selectedWorker.workerState })
-      } else if (this.selectedBuilding?.buildingType === 'barracks') {
-        const training = this.unitSystem.getSoldierTraining(this.selectedBuilding)
-        EventBus.emit<GameSelection>('selection-changed', { type: 'barracks', built: this.selectedBuilding.built, training })
+      } else if (this.selectedBuilding) {
+        this.emitBuildingSelection(this.selectedBuilding)
       } else if (this.selectedSoldiers.length > 0) {
         this.emitSoldierSelection()
       }
@@ -153,6 +183,12 @@ export class GameScene extends Phaser.Scene {
     this.buildMode = type
     EventBus.emit<BuildingType | null>('build-mode-changed', type)
     EventBus.emit<{ type: BuildingType; ready: boolean; valid: boolean } | null>('build-preview-changed', null)
+
+    const pointer = this.input.activePointer
+    if (pointer) {
+      const wp = this.cameras.main.getWorldPoint(pointer.x, pointer.y)
+      this.showBuildPreview(type, Math.floor(wp.x / TILE_SIZE), Math.floor(wp.y / TILE_SIZE))
+    }
   }
 
   private cancelBuildMode(): void {
@@ -165,20 +201,23 @@ export class GameScene extends Phaser.Scene {
   private destroyBuildPreview(): void {
     if (!this.buildPreview) return
     this.buildPreview.gfx.destroy()
+    this.buildPreview.confirmText.destroy()
+    this.buildPreview.cancelText.destroy()
     this.buildPreview = null
   }
 
   private isValidBuildTile(tileX: number, tileY: number): boolean {
     const tile = this.mapSystem.getTile(tileX, tileY)
     const walkable = tile?.walkable ?? false
-    return walkable && !this.buildingSystem.isTileOccupied(tileX, tileY) && tile?.type !== 'water' && tile?.type !== 'mountain'
+    const hasResource = this.resourceSystem.nodes.some(node => !node.depleted && node.tileX === tileX && node.tileY === tileY)
+    return walkable && !hasResource && !this.buildingSystem.isTileOccupied(tileX, tileY) && tile?.type !== 'water' && tile?.type !== 'mountain'
   }
 
   private canAffordBuild(type: BuildingType): boolean {
     return this.resourceSystem.canAfford('player', BUILDING_CONFIGS[type].cost)
   }
 
-  private showBuildPreview(type: BuildingType, tileX: number, tileY: number): void {
+  private showBuildPreview(type: BuildingType, tileX: number, tileY: number, pinned = false): void {
     const tileValid = this.isValidBuildTile(tileX, tileY)
     const affordable = this.canAffordBuild(type)
     const valid = tileValid && affordable
@@ -190,7 +229,29 @@ export class GameScene extends Phaser.Scene {
     const color = valid ? config.color : 0xef4444
 
     if (!this.buildPreview) {
-      this.buildPreview = { type, tileX, tileY, valid, gfx: this.add.graphics() }
+      const confirmText = this.add.text(0, 0, '✓', {
+        fontFamily: 'monospace',
+        fontSize: '18px',
+        color: '#bbf7d0',
+        backgroundColor: 'rgba(22,101,52,0.92)',
+        padding: { x: 8, y: 4 },
+      }).setOrigin(0.5).setDepth(7).setInteractive({ useHandCursor: true })
+      const cancelText = this.add.text(0, 0, '✕', {
+        fontFamily: 'monospace',
+        fontSize: '18px',
+        color: '#fecaca',
+        backgroundColor: 'rgba(127,29,29,0.92)',
+        padding: { x: 8, y: 4 },
+      }).setOrigin(0.5).setDepth(7).setInteractive({ useHandCursor: true })
+      confirmText.on('pointerup', (_pointer: Phaser.Input.Pointer, _localX: number, _localY: number, event: Phaser.Types.Input.EventData) => {
+        event.stopPropagation()
+        this.confirmBuildPreview()
+      })
+      cancelText.on('pointerup', (_pointer: Phaser.Input.Pointer, _localX: number, _localY: number, event: Phaser.Types.Input.EventData) => {
+        event.stopPropagation()
+        this.cancelBuildMode()
+      })
+      this.buildPreview = { type, tileX, tileY, valid, pinned, gfx: this.add.graphics(), confirmText, cancelText }
       this.buildPreview.gfx.setDepth(4)
     }
 
@@ -198,6 +259,7 @@ export class GameScene extends Phaser.Scene {
     this.buildPreview.tileX = tileX
     this.buildPreview.tileY = tileY
     this.buildPreview.valid = valid
+    this.buildPreview.pinned = pinned
     this.buildPreview.gfx.clear()
     this.buildPreview.gfx.setPosition(worldX, worldY)
     this.buildPreview.gfx.fillStyle(color, valid ? 0.38 : 0.22)
@@ -207,11 +269,22 @@ export class GameScene extends Phaser.Scene {
     this.buildPreview.gfx.lineStyle(1, 0xffffff, 0.35)
     this.buildPreview.gfx.strokeRect(-TILE_SIZE / 2, -TILE_SIZE / 2, TILE_SIZE, TILE_SIZE)
 
-    EventBus.emit<{ type: BuildingType; ready: boolean; valid: boolean } | null>('build-preview-changed', { type, ready: true, valid })
+    const actionY = worldY + hh + 22
+    this.buildPreview.confirmText.setPosition(worldX - 18, actionY)
+    this.buildPreview.cancelText.setPosition(worldX + 18, actionY)
+    this.buildPreview.confirmText.setVisible(pinned)
+    this.buildPreview.cancelText.setVisible(pinned)
+    this.buildPreview.confirmText.setAlpha(valid ? 1 : 0.38)
+    this.buildPreview.confirmText.disableInteractive()
+    this.buildPreview.cancelText.disableInteractive()
+    if (pinned && valid) this.buildPreview.confirmText.setInteractive({ useHandCursor: true })
+    if (pinned) this.buildPreview.cancelText.setInteractive({ useHandCursor: true })
+
+    EventBus.emit<{ type: BuildingType; ready: boolean; valid: boolean } | null>('build-preview-changed', { type, ready: pinned, valid })
   }
 
   private confirmBuildPreview(): void {
-    if (!this.buildMode || !this.buildPreview || !this.buildPreview.valid) return
+    if (!this.buildMode || !this.buildPreview || !this.buildPreview.pinned || !this.buildPreview.valid) return
 
     const { type, tileX, tileY } = this.buildPreview
     if (!this.isValidBuildTile(tileX, tileY) || !this.canAffordBuild(type)) {
@@ -229,6 +302,8 @@ export class GameScene extends Phaser.Scene {
 
     const builder = this.selectedWorker ?? this.unitSystem.workers.find(w => w.workerState === 'idle' && w.faction === 'player') ?? null
     if (builder) this.unitSystem.commandBuild(builder, building)
+    this.playTone(220, 0.08, 'triangle')
+    this.showCommandPulse(building.x, building.y, 0x22c55e)
 
     this.cancelBuildMode()
     this.clearSelection()
@@ -242,7 +317,7 @@ export class GameScene extends Phaser.Scene {
     const tileY = Math.floor(worldY / TILE_SIZE)
 
     if (this.buildMode !== null) {
-      this.showBuildPreview(this.buildMode, tileX, tileY)
+      this.showBuildPreview(this.buildMode, tileX, tileY, true)
       return
     }
 
@@ -254,6 +329,13 @@ export class GameScene extends Phaser.Scene {
         return
       }
       if (tapSoldier.faction === 'player') {
+        const now = this.time.now
+        const isDoubleTap = this.lastSoldierTap?.soldier === tapSoldier && now - this.lastSoldierTap.time < 360
+        this.lastSoldierTap = { soldier: tapSoldier, time: now }
+        if (isDoubleTap) {
+          this.selectVisiblePlayerSoldiers()
+          return
+        }
         this.clearSelection()
         this.selectedSoldiers = [tapSoldier]
         tapSoldier.setSelected(true)
@@ -283,6 +365,10 @@ export class GameScene extends Phaser.Scene {
           this.unitSystem.commandBuild(this.selectedWorker, building)
           return
         }
+        if (this.selectedWorker && building.built && building.damaged) {
+          this.unitSystem.commandRepair(this.selectedWorker, building)
+          return
+        }
         this.clearSelection()
         this.selectedBuilding = building
         building.setSelected(true)
@@ -293,14 +379,21 @@ export class GameScene extends Phaser.Scene {
 
     if (this.selectedWorker) {
       const node = this.resourceSystem.nodes.find(n => n.tileX === tileX && n.tileY === tileY && !n.depleted)
-      if (node) this.unitSystem.commandGather(this.selectedWorker, node)
-      else this.unitSystem.commandMove(this.selectedWorker, worldX, worldY)
+      if (node) {
+        this.unitSystem.commandGather(this.selectedWorker, node)
+        this.playTone(330, 0.04, 'square')
+        this.showCommandPulse(node.tileX * TILE_SIZE + TILE_SIZE / 2, node.tileY * TILE_SIZE + TILE_SIZE / 2, node.type === 'wood' ? 0x22c55e : 0xfacc15)
+      } else {
+        this.unitSystem.commandMove(this.selectedWorker, worldX, worldY)
+        this.showCommandPulse(worldX, worldY, 0x60a5fa)
+      }
       return
     }
 
     const playerSoldiers = this.selectedSoldiers.filter(s => s.faction === 'player')
     if (playerSoldiers.length > 0) {
       this.combatSystem.commandMoveSoldiers(playerSoldiers, worldX, worldY)
+      this.showCommandPulse(worldX, worldY, 0xa78bfa)
       return
     }
 
@@ -322,19 +415,33 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  private selectVisiblePlayerSoldiers(): void {
+    const view = this.cameras.main.worldView
+    const visible = this.combatSystem.getSoldiersOfFaction('player')
+      .filter(s => view.contains(s.x, s.y))
+    if (visible.length === 0) return
+
+    this.clearSelection()
+    this.selectedSoldiers = visible
+    for (const s of visible) s.setSelected(true)
+    this.emitSoldierSelection()
+    this.showCommandPulse(visible[0].x, visible[0].y, 0xa78bfa)
+  }
+
   private emitBuildingSelection(building: Building): void {
     const btype = building.buildingType
+    const stats = { built: building.built, hp: Math.ceil(building.hp), maxHp: building.maxHp, damaged: building.damaged }
     if (btype === 'townhall') {
-      EventBus.emit<GameSelection>('selection-changed', { type: 'townhall', training: null })
+      EventBus.emit<GameSelection>('selection-changed', { type: 'townhall', training: this.unitSystem.getWorkerTraining(), queue: this.unitSystem.getWorkerTrainingQueue(), ...stats })
     } else if (btype === 'barracks') {
-      const training = this.unitSystem.getSoldierTraining(building)
-      EventBus.emit<GameSelection>('selection-changed', { type: 'barracks', built: building.built, training })
+      const barracksTraining = this.unitSystem.getSoldierTraining(building)
+      EventBus.emit<GameSelection>('selection-changed', { type: 'barracks', training: barracksTraining, queue: this.unitSystem.getSoldierTrainingQueue(building), ...stats })
     } else if (btype === 'farm') {
-      EventBus.emit<GameSelection>('selection-changed', { type: 'farm', built: building.built })
+      EventBus.emit<GameSelection>('selection-changed', { type: 'farm', ...stats })
     } else if (btype === 'mine') {
-      EventBus.emit<GameSelection>('selection-changed', { type: 'mine', built: building.built })
+      EventBus.emit<GameSelection>('selection-changed', { type: 'mine', ...stats })
     } else if (btype === 'watchtower') {
-      EventBus.emit<GameSelection>('selection-changed', { type: 'watchtower', built: building.built })
+      EventBus.emit<GameSelection>('selection-changed', { type: 'watchtower', ...stats })
     }
   }
 
@@ -346,13 +453,64 @@ export class GameScene extends Phaser.Scene {
     EventBus.emit<GameSelection>('selection-changed', { type: 'none' })
   }
 
+  private showCommandPulse(worldX: number, worldY: number, color: number): void {
+    const gfx = this.add.graphics()
+    gfx.setDepth(6)
+    gfx.lineStyle(2, color, 0.9)
+    gfx.strokeCircle(0, 0, 6)
+    gfx.setPosition(worldX, worldY)
+    this.tweens.add({
+      targets: gfx,
+      alpha: 0,
+      scaleX: 2.4,
+      scaleY: 2.4,
+      duration: 360,
+      ease: 'Sine.easeOut',
+      onComplete: () => gfx.destroy(),
+    })
+  }
+
+  private playTone(frequency: number, duration: number, type: OscillatorType): void {
+    if (typeof window === 'undefined') return
+    const audioWindow = window as Window & { webkitAudioContext?: typeof AudioContext }
+    const AudioCtor = window.AudioContext ?? audioWindow.webkitAudioContext
+    if (!AudioCtor) return
+    this.audioContext ??= new AudioCtor()
+    const ctx = this.audioContext
+    const oscillator = ctx.createOscillator()
+    const gain = ctx.createGain()
+    oscillator.type = type
+    oscillator.frequency.value = frequency
+    gain.gain.setValueAtTime(0.025, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration)
+    oscillator.connect(gain)
+    gain.connect(ctx.destination)
+    oscillator.start()
+    oscillator.stop(ctx.currentTime + duration)
+  }
+
   private setupKeyboard(): void {
-    this.cursors = this.input.keyboard!.createCursorKeys()
+    const keyboard = this.input.keyboard!
+    this.cursors = keyboard.createCursorKeys()
     this.wasd = {
-      up: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.W),
-      down: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.S),
-      left: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.A),
-      right: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D),
+      up: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+      down: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
+      left: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
+      right: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
+    }
+
+    const buildShortcuts: { key: number; type: BuildingType }[] = [
+      { key: Phaser.Input.Keyboard.KeyCodes.F, type: 'farm' },
+      { key: Phaser.Input.Keyboard.KeyCodes.K, type: 'barracks' },
+      { key: Phaser.Input.Keyboard.KeyCodes.M, type: 'mine' },
+      { key: Phaser.Input.Keyboard.KeyCodes.W, type: 'watchtower' },
+    ]
+
+    for (const { key, type } of buildShortcuts) {
+      keyboard.addKey(key).on('down', (_key: Phaser.Input.Keyboard.Key, event: KeyboardEvent) => {
+        if (event.repeat) return
+        this.setBuildMode(type)
+      })
     }
   }
 
@@ -363,6 +521,11 @@ export class GameScene extends Phaser.Scene {
       this.pointerDownX = pointer.x; this.pointerDownY = pointer.y
     })
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (this.buildMode && !pointer.isDown && !this.buildPreview?.pinned) {
+        const wp = this.cameras.main.getWorldPoint(pointer.x, pointer.y)
+        this.showBuildPreview(this.buildMode, Math.floor(wp.x / TILE_SIZE), Math.floor(wp.y / TILE_SIZE), false)
+        return
+      }
       if (!this.isDragging || !pointer.isDown) return
       const cam = this.cameras.main
       cam.scrollX -= pointer.x - this.dragStartX
@@ -372,7 +535,7 @@ export class GameScene extends Phaser.Scene {
     this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
       const dx = pointer.x - this.pointerDownX
       const dy = pointer.y - this.pointerDownY
-      if (Math.sqrt(dx * dx + dy * dy) < 15) {
+      if (Math.sqrt(dx * dx + dy * dy) < 18) {
         const wp = this.cameras.main.getWorldPoint(pointer.x, pointer.y)
         this.handleTap(wp.x, wp.y)
       }
@@ -384,9 +547,10 @@ export class GameScene extends Phaser.Scene {
   private handleKeyboardCamera(delta: number): void {
     const speed = (CAMERA_SPEED * delta) / 1000
     const cam = this.cameras.main
-    if (this.cursors.left.isDown || this.wasd.left.isDown) cam.scrollX -= speed
-    else if (this.cursors.right.isDown || this.wasd.right.isDown) cam.scrollX += speed
-    if (this.cursors.up.isDown || this.wasd.up.isDown) cam.scrollY -= speed
-    else if (this.cursors.down.isDown || this.wasd.down.isDown) cam.scrollY += speed
+    const easedSpeed = speed * 0.92
+    if (this.cursors.left.isDown || this.wasd.left.isDown) cam.scrollX -= easedSpeed
+    else if (this.cursors.right.isDown || this.wasd.right.isDown) cam.scrollX += easedSpeed
+    if (this.cursors.up.isDown || this.wasd.up.isDown) cam.scrollY -= easedSpeed
+    else if (this.cursors.down.isDown || this.wasd.down.isDown) cam.scrollY += easedSpeed
   }
 }

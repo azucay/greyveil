@@ -11,11 +11,11 @@ interface Props {
   resources: Resources
 }
 
-const BUILD_BUTTONS: { type: BuildingType; label: string; costLabel: string }[] = [
-  { type: 'farm', label: 'Farm', costLabel: '🪵60' },
-  { type: 'mine', label: 'Mine', costLabel: '🪵80 🪨60' },
-  { type: 'barracks', label: 'Barracks', costLabel: '🪵100 🪨80' },
-  { type: 'watchtower', label: 'Wachturm', costLabel: '🪵120 🪨80' },
+const BUILD_BUTTONS: { type: BuildingType; label: string; costLabel: string; shortcut: string }[] = [
+  { type: 'farm', label: 'Farm', costLabel: '🪵45 🪨10', shortcut: 'F' },
+  { type: 'mine', label: 'Mine', costLabel: '🪵55 🪨85', shortcut: 'M' },
+  { type: 'barracks', label: 'Barracks', costLabel: '🪵110 🪨70', shortcut: 'K' },
+  { type: 'watchtower', label: 'Wachturm', costLabel: '🪵90 🪨110', shortcut: 'W' },
 ]
 
 export default function GameHUD({ resources }: Props) {
@@ -67,10 +67,10 @@ export default function GameHUD({ resources }: Props) {
   }
 
   const canAfford = (type: BuildingType): boolean => {
-    if (type === 'farm') return resources.wood >= 60
-    if (type === 'mine') return resources.wood >= 80 && resources.stone >= 60
-    if (type === 'barracks') return resources.wood >= 100 && resources.stone >= 80
-    if (type === 'watchtower') return resources.wood >= 120 && resources.stone >= 80
+    if (type === 'farm') return resources.wood >= 45 && resources.stone >= 10
+    if (type === 'mine') return resources.wood >= 55 && resources.stone >= 85
+    if (type === 'barracks') return resources.wood >= 110 && resources.stone >= 70
+    if (type === 'watchtower') return resources.wood >= 90 && resources.stone >= 110
     return false
   }
 
@@ -156,7 +156,7 @@ export default function GameHUD({ resources }: Props) {
             </span>
           </>
         ) : (
-          BUILD_BUTTONS.map(({ type, label, costLabel }) => {
+          BUILD_BUTTONS.map(({ type, label, costLabel, shortcut }) => {
             const affordable = canAfford(type)
             return (
               <button
@@ -165,7 +165,7 @@ export default function GameHUD({ resources }: Props) {
                 onClick={() => affordable && handleStartBuild(type)}
                 disabled={!affordable}
               >
-                {label} ({costLabel})
+                {label} [{shortcut}] ({costLabel})
               </button>
             )
           })
@@ -218,11 +218,11 @@ export default function GameHUD({ resources }: Props) {
           <span style={{ color: '#f59e0b' }}>Town Hall</span>
           <span style={{ color: '#9ca3af' }}>—</span>
           <button
-            style={btnStyle(false, resources.wood >= 50 && training === null)}
+            style={btnStyle(false, resources.food >= 25 && training === null)}
             onClick={handleTrainWorker}
-            disabled={resources.wood < 50 || training !== null}
+            disabled={resources.food < 25 || training !== null}
           >
-            Train Worker ({RESOURCE_SYMBOLS.wood}50)
+            Train Worker ({RESOURCE_SYMBOLS.food}25)
           </button>
           {training !== null && (
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -251,8 +251,8 @@ export default function GameHUD({ resources }: Props) {
       }
 
       const t = selection.training
-      const canSword = resources.metal >= 50 && resources.food >= 20 && !t
-      const canArcher = resources.wood >= 30 && resources.metal >= 30 && !t
+      const canSword = resources.metal >= 45 && resources.food >= 25 && !t
+      const canArcher = resources.wood >= 35 && resources.food >= 15 && resources.metal >= 20 && !t
 
       return (
         <div style={rowStyle}>
@@ -263,14 +263,14 @@ export default function GameHUD({ resources }: Props) {
             onClick={() => canSword && handleTrainSoldier('swordsman')}
             disabled={!canSword}
           >
-            Sword ({RESOURCE_SYMBOLS.metal}50 {RESOURCE_SYMBOLS.food}20)
+            Sword ({RESOURCE_SYMBOLS.metal}45 {RESOURCE_SYMBOLS.food}25)
           </button>
           <button
             style={btnStyle(false, canArcher)}
             onClick={() => canArcher && handleTrainSoldier('archer')}
             disabled={!canArcher}
           >
-            Archer ({RESOURCE_SYMBOLS.wood}30 {RESOURCE_SYMBOLS.metal}30)
+            Archer ({RESOURCE_SYMBOLS.wood}35 {RESOURCE_SYMBOLS.food}15 {RESOURCE_SYMBOLS.metal}20)
           </button>
           {t && (
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -304,7 +304,7 @@ export default function GameHUD({ resources }: Props) {
         <div style={rowStyle}>
           <span style={{ color: '#94a3b8' }}>Mine</span>
           <span style={{ color: '#9ca3af' }}>—</span>
-          <span>{selection.built ? `Ready (+2 ${RESOURCE_SYMBOLS.metal}/s)` : 'Under Construction'}</span>
+          <span>{selection.built ? `Ready (+2 ${RESOURCE_SYMBOLS.metal}/s, Gold nur Abbau)` : 'Under Construction'}</span>
         </div>
       )
     }
