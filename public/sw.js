@@ -1,56 +1,28 @@
-const CACHE = 'greyveil-v1'
+// Offline-Cache: Network-first für HTML, Cache-first für gehashte Assets.
+const CACHE = 'greyveil-v2';
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(['/']))
-  )
-  self.skipWaiting()
-})
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
+    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()),
+  );
+});
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
-    )
-  )
-  self.clients.claim()
-})
+self.addEventListener('fetch', (e) => {
+  const req = e.request;
+  if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
+  const isPage = req.mode === 'navigate';
+  e.respondWith(
+    (isPage
+      ? fetch(req).then((res) => put(req, res)).catch(() => caches.match(req).then((r) => r || caches.match('/')))
+      : caches.match(req).then((hit) => hit || fetch(req).then((res) => put(req, res)))),
+  );
+});
 
-self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url)
-
-  // Network-first for API — offline fallback returns safe default
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(
-      fetch(event.request).catch(() =>
-        Response.json({ strategy: 'gather', reason: 'Offline' })
-      )
-    )
-    return
+function put(req, res) {
+  if (res.ok) {
+    const copy = res.clone();
+    caches.open(CACHE).then((c) => c.put(req, copy));
   }
-
-  // Cache-first for Next.js static bundles (hashed filenames never change)
-  if (url.pathname.startsWith('/_next/static/')) {
-    event.respondWith(
-      caches.match(event.request).then(
-        (cached) =>
-          cached ??
-          fetch(event.request).then((res) => {
-            caches.open(CACHE).then((c) => c.put(event.request, res.clone()))
-            return res
-          })
-      )
-    )
-    return
-  }
-
-  // Network-first with cache fallback for everything else
-  event.respondWith(
-    fetch(event.request)
-      .then((res) => {
-        caches.open(CACHE).then((c) => c.put(event.request, res.clone()))
-        return res
-      })
-      .catch(() => caches.match(event.request))
-  )
-})
+  return res;
+}

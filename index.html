@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#101216" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/icon-192.png" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
+  <title>Greyveil</title>
+</head>
+<body>
+  <div id="game"></div>
+  <div id="vignette"></div>
+
+  <div id="hud" hidden>
+    <div id="topbar">
+      <div class="res"><i class="ic-gold"></i><span id="r-gold">0</span></div>
+      <div class="res"><i class="ic-wood"></i><span id="r-wood">0</span></div>
+      <div class="res"><i class="ic-pop"></i><span id="r-pop">0/0</span></div>
+      <button id="btn-menu" class="icon-btn" aria-label="Menü">❚❚</button>
+    </div>
+    <canvas id="minimap"></canvas>
+    <div id="toast"></div>
+    <div id="panel" hidden>
+      <div id="sel-info"></div>
+      <div id="actions"></div>
+    </div>
+    <div id="quick">
+      <button id="btn-idle" class="qbtn"><span class="qi">⛏</span><span>Untätig</span><em id="idle-count" hidden>0</em></button>
+      <button id="btn-army" class="qbtn"><span class="qi">⚔</span><span>Armee</span></button>
+      <button id="btn-desel" class="qbtn"><span class="qi">✕</span><span>Abwählen</span></button>
+    </div>
+  </div>
+
+  <div id="screen-start" class="screen">
+    <div class="card">
+      <h1>GREYVEIL</h1>
+      <p class="sub">Halte das Tal. Brich die Rote Horde.</p>
+      <div class="diff">
+        <button data-diff="easy">Leicht</button>
+        <button data-diff="normal" class="primary">Normal</button>
+        <button data-diff="hard">Schwer</button>
+      </div>
+      <details>
+        <summary>Steuerung</summary>
+        <ul>
+          <li><b>Tippen</b> auf Einheit: auswählen · <b>Doppeltipp</b>: alle dieses Typs</li>
+          <li><b>Lange drücken + ziehen</b>: Auswahlrahmen</li>
+          <li><b>Tippen</b> auf Karte/Gegner/Mine/Wald: Befehl für die Auswahl</li>
+          <li><b>Wischen</b>: Karte bewegen · <b>Zwei Finger</b>: Zoom</li>
+          <li>Gebäude wählen + Karte tippen: Sammelpunkt</li>
+        </ul>
+        <p class="hint">Ziel: Zerstöre alle Gebäude der Horde. Farmen erhöhen die Versorgung.</p>
+      </details>
+    </div>
+  </div>
+
+  <div id="screen-menu" class="screen" hidden>
+    <div class="card">
+      <h2>Pause</h2>
+      <button id="m-resume" class="primary">Weiter</button>
+      <button id="m-sound">Ton: an</button>
+      <button id="m-restart">Neu starten</button>
+      <button id="m-quit">Hauptmenü</button>
+    </div>
+  </div>
+
+  <div id="screen-over" class="screen" hidden>
+    <div class="card">
+      <h2 id="over-title">Sieg</h2>
+      <p id="over-text" class="sub"></p>
+      <button id="o-again" class="primary">Nochmal</button>
+      <button id="o-menu">Hauptmenü</button>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
