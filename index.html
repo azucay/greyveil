@@ -21,9 +21,11 @@
       <div class="res"><i class="ic-gold"></i><span id="r-gold">0</span></div>
       <div class="res"><i class="ic-wood"></i><span id="r-wood">0</span></div>
       <div class="res"><i class="ic-pop"></i><span id="r-pop">0/0</span></div>
+      <button id="btn-speed" class="icon-btn" aria-label="Tempo">1×</button>
       <button id="btn-menu" class="icon-btn" aria-label="Menü">❚❚</button>
     </div>
     <canvas id="minimap"></canvas>
+    <div id="goal" hidden></div>
     <div id="toast"></div>
     <div id="panel" hidden>
       <div id="sel-info"></div>
@@ -73,6 +75,7 @@
     <div class="card">
       <h2 id="over-title">Sieg</h2>
       <p id="over-text" class="sub"></p>
+      <dl id="over-stats"></dl>
       <button id="o-again" class="primary">Nochmal</button>
       <button id="o-menu">Hauptmenü</button>
     </div>

@@ -27,6 +27,7 @@ export class GameScene extends Phaser.Scene {
   selection: Selection = null;
   placing: { kind: BuildingKind; tx: number; ty: number } | null = null;
   paused = false;
+  speed = 1;
   hooks: SceneHooks = { onSelection: () => {}, onPlacement: () => {} };
 
   private under!: Phaser.GameObjects.Graphics;
@@ -48,6 +49,7 @@ export class GameScene extends Phaser.Scene {
     this.selection = null;
     this.placing = null;
     this.paused = false;
+    this.speed = 1;
     this.ptrs.clear();
     this.mode = 'none';
     this.lasso = null;
@@ -411,8 +413,11 @@ export class GameScene extends Phaser.Scene {
   update(_t: number, deltaMs: number) {
     const dt = Math.min(0.05, deltaMs / 1000);
     if (!this.paused) {
-      this.world.update(dt);
-      this.ai.update(dt);
+      // 2× = zwei Simulationsschritte pro Frame (stabiler als großes dt)
+      for (let i = 0; i < this.speed; i++) {
+        this.world.update(dt);
+        this.ai.update(dt);
+      }
     }
     this.syncSprites();
     this.drawOverlays();

@@ -452,3 +452,49 @@ details b {
 .qbtn em[hidden] {
   display: none;
 }
+
+#goal {
+  position: absolute;
+  top: calc(var(--safe-t) + 50px);
+  left: calc(var(--safe-l) + 8px);
+  max-width: calc(100vw - 160px);
+  padding: 5px 10px;
+  background: var(--panel);
+  border: 1px solid #5a4a24;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #f3e3b8;
+  pointer-events: none;
+}
+#goal[hidden] {
+  display: none;
+}
+.act.upg-atk .lbl::before {
+  content: '🗡 ';
+}
+.act.upg-def .lbl::before {
+  content: '🛡 ';
+}
+#over-stats {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 4px 14px;
+  margin: 4px 0;
+  font-size: 14px;
+  text-align: left;
+}
+#over-stats dt {
+  color: var(--muted);
+}
+#over-stats dd {
+  margin: 0;
+  text-align: right;
+}
+#over-stats .h {
+  color: var(--muted);
+  font-size: 11px;
+}
+#btn-speed {
+  font-size: 14px;
+  width: 40px;
+}

@@ -72,6 +72,7 @@ npm run typecheck
 | Gebäude gewählt + Tap | Sammelpunkt setzen (auf Mine/Wald sammeln neue Arbeiter automatisch) |
 | 1 Finger wischen / 2 Finger | Kamera bewegen / Pinch-Zoom |
 | Desktop | Rechtsklick = Befehl, Mausrad = Zoom |
+| `1×/2×` in der Leiste oben | Spieltempo umschalten |
 
 ---
 
@@ -124,6 +125,17 @@ Debug-Zugriff im Browser: `window.__greyveil.scene()` liefert die GameScene (`.w
 - Nebel als winzige Canvas-Textur (1 px pro Tile) mit LINEAR-Filter, hochskaliert, ergibt weiche Ränder fast kostenlos.
 - Pixel-Kontur automatisch per `getImageData` macht aus simplen Rechtecken lesbare Sprites.
 - Headless-Balance-Test: KI gegen passiven Spieler. Normal gewinnt nach ca. 7 Minuten, das ist ein guter Richtwert.
+---
+
+---
+### [v0.3] Forschung, Tempo, Ziele, Statistik — 2026-10-15
+**Was ich vorher hätte wissen sollen:**
+- Upgrades wirken über `world.atk(u)` und `world.armor(t)`. Neue Schadensquellen müssen diese Helfer nutzen, nicht `stats.dmg` direkt.
+**Fallstricke:**
+- Für Tempo 2× laufen zwei Simulationsschritte pro Frame statt doppeltem `dt`. Das hält Bewegung und Kollision stabil.
+**Nützliche Erkenntnisse:**
+- Eine Ziel-Leiste (`Hud.updateGoal`) ersetzt ein Tutorial und kostet fast nichts. Neue Ziele kommen einfach ins Array.
+- `world.stats` zählt Sammeln, Ausbildung, Kills und Verluste je Fraktion. Der Spielende-Screen nutzt das.
 ---
 
 Format:

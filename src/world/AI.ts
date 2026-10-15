@@ -109,7 +109,17 @@ export class EnemyAI {
     const w = this.world;
     const wantsBuilding = w.cap(F) - w.pop(F) <= 2;
     for (const b of blds) {
-      if (b.kind !== 'barracks' || !b.built || b.queue.length >= 2) continue;
+      if (b.kind !== 'barracks' || !b.built) continue;
+      // Forschung, sobald genug Polster da ist (Klingen zuerst)
+      if (this.p.upgrades && !b.research && w.time > 200 && !wantsBuilding)
+        for (const key of ['atk', 'def'] as const) {
+          const c = w.nextUpgrade(F, key);
+          if (c && !w.researching(F, key) && w.res[F].gold >= c.gold + 150 && w.res[F].wood >= c.wood) {
+            w.research(b, key);
+            break;
+          }
+        }
+      if (b.queue.length >= 2) continue;
       const kind = this.trainToggle++ % 5 < 3 ? 'footman' : 'archer';
       const reserve = wantsBuilding ? BUILDINGS.farm.cost.gold : 0;
       if (w.res[F].gold - UNITS[kind].cost.gold >= reserve) w.train(b, kind);

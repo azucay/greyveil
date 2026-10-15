@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { BUILDINGS, BuildingKind, BuildingStats, Faction, GATHER, TILE, UNITS, UnitKind, UnitStats } from '@/config';
+import { BUILDINGS, BuildingKind, BuildingStats, Faction, GATHER, TILE, UNITS, UnitKind, UnitStats, UpgradeKey } from '@/config';
 import type { Point } from '@/world/Grid';
 
 let nextId = 1;
@@ -73,6 +73,7 @@ export class Building {
   built: boolean;
   progress = 0;
   queue: UnitKind[] = [];
+  research: { key: UpgradeKey; t: number } | null = null;
   trainT = 0;
   cooldown = 0;
   rally: Point | null = null;

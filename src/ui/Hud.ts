@@ -1,4 +1,4 @@
-import { BUILDINGS, BuildingKind, Cost, hex, PAL, TILE, UNITS, UnitKind } from '@/config';
+import { BUILDINGS, BuildingKind, Cost, hex, PAL, TILE, UNITS, UnitKind, UPGRADES, UpgradeKey } from '@/config';
 import type { GameScene } from '@/scenes/GameScene';
 import { Unit } from '@/world/Entities';
 
@@ -27,6 +27,11 @@ export class Hud {
       if (!army.length) return this.toast('Keine Armee');
       scene.select({ units: army });
     };
+    $('btn-speed').onclick = () => {
+      scene.speed = scene.speed === 1 ? 2 : 1;
+      $('btn-speed').textContent = `${scene.speed}×`;
+    };
+    $('btn-speed').textContent = '1×';
     $('btn-desel').onclick = () => (scene.cancelPlacing(), scene.select(null));
     const mm = $<HTMLCanvasElement>('minimap');
     mm.width = w.grid.w * 2;
@@ -54,10 +59,30 @@ export class Hud {
     this.updateTop();
     this.drawMinimap();
     this.updateLive();
+    this.updateGoal();
     if (this.toastT && performance.now() > this.toastT) {
       $('toast').classList.remove('show');
       this.toastT = 0;
     }
+  }
+
+  /** Kleine Ziel-Leiste fürs Onboarding — verschwindet, sobald alles erledigt ist. */
+  private updateGoal() {
+    const w = this.scene.world;
+    const has = (k: BuildingKind) => w.buildings.some((b) => b.faction === 'player' && b.kind === k && b.built);
+    const army = w.units.filter((u) => u.faction === 'player' && u.military).length;
+    const workers = w.units.filter((u) => u.faction === 'player' && u.kind === 'worker').length;
+    const goals: [boolean, string][] = [
+      [workers >= 6, 'Bilde Arbeiter im Rathaus (6)'],
+      [has('farm'), 'Baue eine Farm (Arbeiter wählen)'],
+      [has('barracks'), 'Baue eine Kaserne'],
+      [army >= 5, `Stelle eine Armee auf (${army}/5)`],
+      [w.stats.player.kills >= 3, 'Finde die Horde (oben rechts) und greife an'],
+    ];
+    const next = goals.find(([done]) => !done);
+    const el = $('goal');
+    el.hidden = !next || w.time > 900;
+    if (next) el.textContent = `◆ ${next[1]}`;
   }
 
   toast(msg: string) {
@@ -166,6 +191,13 @@ export class Hud {
       info.innerHTML = `<div class="row"><img class="big" src="${this.icon(b.built ? b.tex : `b_${b.kind}_player`)}"><div><b>${b.stats.name}</b><span class="hp" data-live="hp"></span><span class="hint" data-live="state"></span></div></div>`;
       if (b.built) {
         for (const k of b.stats.trains) acts.append(this.button(UNITS[k].name, `u_${k}_player`, UNITS[k].cost, () => s.world.train(b, k)));
+        if (b.kind === 'barracks')
+          for (const key of ['atk', 'def'] as UpgradeKey[]) {
+            const c = s.world.nextUpgrade('player', key);
+            const lvl = s.world.upg.player[key];
+            if (c && !s.world.researching('player', key))
+              acts.append(this.button(`${UPGRADES[key].name} ${'I'.repeat(lvl + 1)}`, null, c, () => s.world.research(b, key), key === 'atk' ? 'upg-atk' : 'upg-def'));
+          }
         if (b.queue.length) acts.append(this.button('Abbruch', null, null, () => s.world.cancelTrain(b), 'cancel'));
       }
       this.updateLive();
@@ -200,6 +232,7 @@ export class Hud {
     } else if (b) {
       hp.textContent = `${Math.ceil(b.hp)} / ${b.maxHp} LP`;
       if (!b.built) st.textContent = `Im Bau · ${Math.floor(b.progress * 100)}%`;
+      else if (b.research) st.textContent = `Erforscht ${UPGRADES[b.research.key].name} · ${Math.floor((b.research.t / UPGRADES[b.research.key].time) * 100)}%`;
       else if (b.queue.length) st.textContent = `Bildet aus: ${b.queue.map((k) => UNITS[k].name).join(', ')}`;
       else if (b.stats.trains.length) st.textContent = 'Tippe Karte = Sammelpunkt';
       else st.textContent = b.kind === 'farm' ? '+5 Versorgung' : 'Verteidigt die Basis';

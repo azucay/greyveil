@@ -37,6 +37,14 @@ function start(d: Difficulty) {
       setTimeout(() => {
         $('over-title').textContent = won ? 'Sieg!' : 'Niederlage';
         $('over-text').textContent = won ? `Die Horde ist gebrochen. (${min} Min.)` : `Deine Basis ist gefallen. (${min} Min.)`;
+        const st = scene.world.stats;
+        const row = (l: string, a: number, b: number) => `<dt>${l}</dt><dd>${a}</dd><dd>${b}</dd>`;
+        $('over-stats').innerHTML =
+          '<dt></dt><dd class="h">Du</dd><dd class="h">Horde</dd>' +
+          row('Gesammelt', st.player.gathered, st.enemy.gathered) +
+          row('Ausgebildet', st.player.trained, st.enemy.trained) +
+          row('Besiegt', st.player.kills, st.enemy.kills) +
+          row('Verloren', st.player.lost, st.enemy.lost);
         $('screen-over').hidden = false;
       }, 1400);
     });

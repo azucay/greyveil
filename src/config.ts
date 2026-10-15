@@ -90,6 +90,14 @@ export const BUILDINGS: Record<BuildingKind, BuildingStats> = {
   tower: { name: 'Turm', size: 2, hp: 450, armor: 3, cost: { gold: 100, wood: 80 }, time: 28, supply: 0, sight: 8, trains: [], attack: { dmg: 7, range: 5.5, cooldown: 1.5 } },
 };
 
+export type UpgradeKey = 'atk' | 'def';
+
+/** Forschung in der Kaserne: je Stufe Kosten; Bonus gilt für alle Kämpfer. */
+export const UPGRADES: Record<UpgradeKey, { name: string; bonus: number; time: number; levels: Cost[] }> = {
+  atk: { name: 'Klingen', bonus: 2, time: 35, levels: [{ gold: 200, wood: 100 }, { gold: 350, wood: 200 }] },
+  def: { name: 'Rüstung', bonus: 1, time: 35, levels: [{ gold: 180, wood: 120 }, { gold: 300, wood: 220 }] },
+};
+
 export const GATHER = {
   goldPerTrip: 8,
   woodPerTrip: 8,
@@ -110,10 +118,11 @@ export interface AiProfile {
   towers: number;
   barracks: number;
   thinkEvery: number;
+  upgrades: boolean;
 }
 
 export const AI: Record<Difficulty, AiProfile> = {
-  easy: { gatherMul: 0.75, workerTarget: 6, firstWaveAt: 330, waveSize: 3, waveGrowth: 1, towers: 0, barracks: 1, thinkEvery: 2 },
-  normal: { gatherMul: 1, workerTarget: 9, firstWaveAt: 220, waveSize: 5, waveGrowth: 2, towers: 1, barracks: 1, thinkEvery: 1.2 },
-  hard: { gatherMul: 1.25, workerTarget: 12, firstWaveAt: 160, waveSize: 6, waveGrowth: 3, towers: 2, barracks: 2, thinkEvery: 0.8 },
+  easy: { gatherMul: 0.75, workerTarget: 6, firstWaveAt: 330, waveSize: 3, waveGrowth: 1, towers: 0, barracks: 1, thinkEvery: 2, upgrades: false },
+  normal: { gatherMul: 1, workerTarget: 9, firstWaveAt: 220, waveSize: 5, waveGrowth: 2, towers: 1, barracks: 1, thinkEvery: 1.2, upgrades: true },
+  hard: { gatherMul: 1.25, workerTarget: 12, firstWaveAt: 160, waveSize: 6, waveGrowth: 3, towers: 2, barracks: 2, thinkEvery: 0.8, upgrades: true },
 };
