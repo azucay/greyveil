@@ -138,6 +138,16 @@ Debug-Zugriff im Browser: `window.__greyveil.scene()` liefert die GameScene (`.w
 - `world.stats` zählt Sammeln, Ausbildung, Kills und Verluste je Fraktion. Der Spielende-Screen nutzt das.
 ---
 
+---
+### [v0.4] Playtest-Feedback: Bau-Buttons, Leicht, Lesbarkeit — 2026-10-19
+**Was ich vorher hätte wissen sollen:**
+- Pixel-Fonts sind nur für Überschriften und Zahlen gut lesbar. Fließtext, Kosten und Hinweise laufen deshalb in System-Sans (`--sans`).
+**Fallstricke:**
+- Die ✓/✕-Buttons (`#place-ctl`) werden jeden Frame per `transform` neben den Bau-Geist gesetzt (`Hud.followPlacement`) und am Bildrand geklemmt.
+**Nützliche Erkenntnisse:**
+- Leicht wird über `armyReserve` gebremst: Goldpolster, Warteschlange 1 und kein vorgezogener Angriff. Gegen einen passiven Spieler gewinnt Leicht nach ca. 9 Minuten, Normal nach ca. 6.
+---
+
 Format:
 ```
 ---

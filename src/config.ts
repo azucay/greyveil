@@ -119,10 +119,12 @@ export interface AiProfile {
   barracks: number;
   thinkEvery: number;
   upgrades: boolean;
+  /** Gold, das die KI vor dem Training von Kämpfern zurückhält (bremst Leicht). */
+  armyReserve: number;
 }
 
 export const AI: Record<Difficulty, AiProfile> = {
-  easy: { gatherMul: 0.75, workerTarget: 6, firstWaveAt: 330, waveSize: 3, waveGrowth: 1, towers: 0, barracks: 1, thinkEvery: 2, upgrades: false },
-  normal: { gatherMul: 1, workerTarget: 9, firstWaveAt: 220, waveSize: 5, waveGrowth: 2, towers: 1, barracks: 1, thinkEvery: 1.2, upgrades: true },
-  hard: { gatherMul: 1.25, workerTarget: 12, firstWaveAt: 160, waveSize: 6, waveGrowth: 3, towers: 2, barracks: 2, thinkEvery: 0.8, upgrades: true },
+  easy: { gatherMul: 0.55, workerTarget: 5, firstWaveAt: 480, waveSize: 3, waveGrowth: 1, towers: 0, barracks: 1, thinkEvery: 2.5, upgrades: false, armyReserve: 200 },
+  normal: { gatherMul: 1, workerTarget: 9, firstWaveAt: 220, waveSize: 5, waveGrowth: 2, towers: 1, barracks: 1, thinkEvery: 1.2, upgrades: true, armyReserve: 0 },
+  hard: { gatherMul: 1.25, workerTarget: 12, firstWaveAt: 160, waveSize: 6, waveGrowth: 3, towers: 2, barracks: 2, thinkEvery: 0.8, upgrades: true, armyReserve: 0 },
 };

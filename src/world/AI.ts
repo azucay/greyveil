@@ -119,9 +119,9 @@ export class EnemyAI {
             break;
           }
         }
-      if (b.queue.length >= 2) continue;
+      if (b.queue.length >= (this.p.armyReserve ? 1 : 2)) continue;
       const kind = this.trainToggle++ % 5 < 3 ? 'footman' : 'archer';
-      const reserve = wantsBuilding ? BUILDINGS.farm.cost.gold : 0;
+      const reserve = (wantsBuilding ? BUILDINGS.farm.cost.gold : 0) + this.p.armyReserve;
       if (w.res[F].gold - UNITS[kind].cost.gold >= reserve) w.train(b, kind);
     }
   }
@@ -140,7 +140,7 @@ export class EnemyAI {
     const w = this.world;
     const home = army.filter((u) => distToRect(u.x, u.y, hall) < 12 * TILE);
     const ready = w.time >= this.nextWave && home.length >= this.waveSize;
-    const overflow = w.time >= this.p.firstWaveAt * 0.6 && home.length >= this.waveSize + 6;
+    const overflow = w.time >= this.p.firstWaveAt * (this.p.armyReserve ? 1 : 0.6) && home.length >= this.waveSize + 6;
     if (ready || overflow) {
       this.nextWave = w.time + 70;
       this.waveSize += this.p.waveGrowth;

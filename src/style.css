@@ -498,3 +498,132 @@ details b {
   font-size: 14px;
   width: 40px;
 }
+
+/* ───────── Lesbarkeit (v0.4): größere Schrift, Fließtext in klarer Sans ───────── */
+:root {
+  --sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+.res {
+  font-size: 18px;
+  padding: 6px 12px;
+}
+#sel-info {
+  font-size: 17px;
+  min-width: 140px;
+  max-width: 200px;
+}
+.hp {
+  font-size: 15px;
+}
+.hint,
+details,
+.sub,
+#toast,
+#goal,
+.act .cost,
+#over-stats {
+  font-family: var(--sans);
+}
+.hint {
+  font-size: 13px;
+  line-height: 1.3;
+}
+#toast {
+  font-size: 16px;
+  font-weight: 600;
+}
+#goal {
+  font-size: 15px;
+  font-weight: 600;
+}
+.act {
+  width: 74px;
+  min-height: 70px;
+  font-size: 15px;
+}
+.act .cost {
+  font-size: 13px;
+  font-weight: 600;
+}
+.act .cost i {
+  width: 8px;
+  height: 8px;
+}
+.qbtn {
+  width: 86px;
+  height: 56px;
+  font-size: 14px;
+}
+.qbtn .qi {
+  font-size: 20px;
+}
+details {
+  font-size: 15px;
+}
+.sub {
+  font-size: 16px;
+}
+#over-stats {
+  font-size: 16px;
+}
+#over-stats .h {
+  font-size: 13px;
+}
+@media (orientation: portrait) {
+  .res {
+    font-size: 16px;
+    padding: 5px 8px;
+  }
+  .qbtn {
+    width: 70px;
+    height: 52px;
+    font-size: 13px;
+  }
+  #quick {
+    top: calc(var(--safe-t) + 146px);
+  }
+}
+
+/* Bau-Bestätigung direkt am Gebäude */
+#place-ctl {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+#place-ctl[hidden] {
+  display: none;
+}
+#place-ctl button {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  font-size: 26px;
+  line-height: 1;
+  border: 2px solid var(--line-hi);
+  background: var(--panel-solid);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
+}
+#place-ok {
+  background: #2d4a29 !important;
+  border-color: var(--ok) !important;
+  color: #e4f5dc;
+}
+#place-ok.bad {
+  opacity: 0.4;
+}
+#place-no {
+  color: var(--muted);
+}
+@media (orientation: portrait) {
+  #actions {
+    flex-wrap: nowrap;
+  }
+  .act {
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto;
+  }
+}

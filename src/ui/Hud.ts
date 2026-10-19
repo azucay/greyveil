@@ -32,6 +32,8 @@ export class Hud {
       $('btn-speed').textContent = `${scene.speed}×`;
     };
     $('btn-speed').textContent = '1×';
+    $('place-ok').onclick = () => (scene.confirmPlacing(), this.render());
+    $('place-no').onclick = () => (scene.cancelPlacing(), this.render());
     $('btn-desel').onclick = () => (scene.cancelPlacing(), scene.select(null));
     const mm = $<HTMLCanvasElement>('minimap');
     mm.width = w.grid.w * 2;
@@ -53,6 +55,7 @@ export class Hud {
 
   /** Wird pro Frame vom main-Loop gerufen; zeichnet gedrosselt. */
   tick(dt: number) {
+    this.followPlacement();
     this.timer -= dt;
     if (this.timer > 0) return;
     this.timer = 0.25;
@@ -64,6 +67,30 @@ export class Hud {
       $('toast').classList.remove('show');
       this.toastT = 0;
     }
+  }
+
+  /** ✓/✕ schweben direkt neben dem Bau-Geist (jeden Frame nachgeführt). */
+  private followPlacement() {
+    const s = this.scene;
+    const el = $('place-ctl');
+    const p = s.placing;
+    el.hidden = !p;
+    if (!p) return;
+    const size = BUILDINGS[p.kind].size * TILE;
+    const v = s.cameras.main.worldView;
+    const z = s.cameras.main.zoom;
+    const left = (p.tx * TILE - v.x) * z;
+    const right = left + size * z;
+    const cy = (p.ty * TILE + size / 2 - v.y) * z;
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
+    // Rechts vom Gebäude, sonst links; immer im Bild halten
+    let x = right + 10;
+    if (x + w > window.innerWidth - 8) x = left - w - 10;
+    x = Math.max(8, Math.min(window.innerWidth - w - 8, x));
+    const y = Math.max(60, Math.min(window.innerHeight - h - 8, cy - h / 2));
+    el.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+    $('place-ok').classList.toggle('bad', !s.world.canPlace(p.kind, p.tx, p.ty));
   }
 
   /** Kleine Ziel-Leiste fürs Onboarding — verschwindet, sobald alles erledigt ist. */
@@ -161,11 +188,7 @@ export class Hud {
     if (s.placing) {
       const k = s.placing.kind;
       panel.hidden = false;
-      info.innerHTML = `<b>${BUILDINGS[k].name} platzieren</b><span class="hint">Tippe auf die Karte, um den Bauplatz zu verschieben</span>`;
-      acts.append(
-        this.button('Bauen', null, null, () => s.confirmPlacing(), 'ok'),
-        this.button('Abbruch', null, null, () => s.cancelPlacing(), 'cancel'),
-      );
+      info.innerHTML = `<b>${BUILDINGS[k].name} platzieren</b><span class="hint">Karte antippen = Bauplatz verschieben · ✓ neben dem Gebäude bestätigt</span>`;
       return;
     }
 
