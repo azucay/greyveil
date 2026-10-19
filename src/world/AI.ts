@@ -20,6 +20,7 @@ export class EnemyAI {
     this.nextWave = this.p.firstWaveAt;
     this.waveSize = this.p.waveSize;
     world.gatherMul.enemy = this.p.gatherMul;
+    world.unitMul.enemy = { dmg: this.p.unitDmg, hp: this.p.unitHp };
   }
 
   update(dt: number) {

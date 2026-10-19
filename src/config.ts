@@ -87,7 +87,7 @@ export const BUILDINGS: Record<BuildingKind, BuildingStats> = {
   hall: { name: 'Rathaus', size: 3, hp: 1200, armor: 4, cost: { gold: 300, wood: 200 }, time: 60, supply: 5, sight: 7, trains: ['worker'] },
   farm: { name: 'Farm', size: 2, hp: 300, armor: 1, cost: { gold: 60, wood: 40 }, time: 18, supply: 5, sight: 3, trains: [] },
   barracks: { name: 'Kaserne', size: 3, hp: 650, armor: 2, cost: { gold: 150, wood: 80 }, time: 32, supply: 0, sight: 4, trains: ['footman', 'archer'] },
-  tower: { name: 'Turm', size: 2, hp: 450, armor: 3, cost: { gold: 100, wood: 80 }, time: 28, supply: 0, sight: 8, trains: [], attack: { dmg: 7, range: 5.5, cooldown: 1.5 } },
+  tower: { name: 'Turm', size: 2, hp: 750, armor: 5, cost: { gold: 100, wood: 80 }, time: 28, supply: 0, sight: 8, trains: [], attack: { dmg: 14, range: 6, cooldown: 1.1 } },
 };
 
 export type UpgradeKey = 'atk' | 'def';
@@ -121,10 +121,13 @@ export interface AiProfile {
   upgrades: boolean;
   /** Gold, das die KI vor dem Training von Kämpfern zurückhält (bremst Leicht). */
   armyReserve: number;
+  /** Multiplikatoren für Schaden/LP der KI-Kämpfer (Schwierigkeit ohne Cheats in der Wirtschaft). */
+  unitDmg: number;
+  unitHp: number;
 }
 
 export const AI: Record<Difficulty, AiProfile> = {
-  easy: { gatherMul: 0.55, workerTarget: 5, firstWaveAt: 480, waveSize: 3, waveGrowth: 1, towers: 0, barracks: 1, thinkEvery: 2.5, upgrades: false, armyReserve: 200 },
-  normal: { gatherMul: 1, workerTarget: 9, firstWaveAt: 220, waveSize: 5, waveGrowth: 2, towers: 1, barracks: 1, thinkEvery: 1.2, upgrades: true, armyReserve: 0 },
-  hard: { gatherMul: 1.25, workerTarget: 12, firstWaveAt: 160, waveSize: 6, waveGrowth: 3, towers: 2, barracks: 2, thinkEvery: 0.8, upgrades: true, armyReserve: 0 },
+  easy: { gatherMul: 0.5, workerTarget: 5, firstWaveAt: 540, waveSize: 2, waveGrowth: 1, towers: 0, barracks: 1, thinkEvery: 3, upgrades: false, armyReserve: 250, unitDmg: 0.7, unitHp: 0.8 },
+  normal: { gatherMul: 0.85, workerTarget: 8, firstWaveAt: 300, waveSize: 4, waveGrowth: 1, towers: 1, barracks: 1, thinkEvery: 1.5, upgrades: true, armyReserve: 100, unitDmg: 0.9, unitHp: 0.9 },
+  hard: { gatherMul: 1.25, workerTarget: 12, firstWaveAt: 160, waveSize: 6, waveGrowth: 3, towers: 2, barracks: 2, thinkEvery: 0.8, upgrades: true, armyReserve: 0, unitDmg: 1, unitHp: 1 },
 };

@@ -27,6 +27,7 @@ export class World {
   trees = new Map<number, Phaser.GameObjects.Image>();
   res: Record<Faction, Res> = { player: { gold: START.gold, wood: START.wood }, enemy: { gold: START.gold, wood: START.wood } };
   gatherMul: Record<Faction, number> = { player: 1, enemy: 1 };
+  unitMul: Record<Faction, { dmg: number; hp: number }> = { player: { dmg: 1, hp: 1 }, enemy: { dmg: 1, hp: 1 } };
   upg: Record<Faction, Record<UpgradeKey, number>> = { player: { atk: 0, def: 0 }, enemy: { atk: 0, def: 0 } };
   stats: Record<Faction, { gathered: number; trained: number; lost: number; kills: number }> = {
     player: { gathered: 0, trained: 0, lost: 0, kills: 0 },
@@ -113,6 +114,7 @@ export class World {
   spawnNear(b: Building, kind: UnitKind) {
     const p = this.freeTileAround(b.tx, b.ty, b.size, b.rally ?? { x: b.tx + b.size, y: b.ty + b.size });
     const u = new Unit(this.scene, kind, b.faction, (p.x + 0.5) * TILE, (p.y + 0.5) * TILE);
+    if (u.military) u.hp = u.maxHp = Math.round(u.maxHp * this.unitMul[b.faction].hp);
     this.units.push(u);
     this.emit('res');
     return u;
@@ -397,7 +399,12 @@ export class World {
   }
 
   atk(u: Unit) {
-    return u.stats.dmg + (u.military ? this.upg[u.faction].atk * UPGRADES.atk.bonus : 0);
+    const base = u.stats.dmg + (u.military ? this.upg[u.faction].atk * UPGRADES.atk.bonus : 0);
+    return Math.round(base * this.unitMul[u.faction].dmg);
+  }
+  /** Turm profitiert ebenfalls von Klingen. */
+  towerAtk(b: Building) {
+    return (b.stats.attack?.dmg ?? 0) + this.upg[b.faction].atk * UPGRADES.atk.bonus;
   }
   armor(t: Target) {
     return t.stats.armor + (t instanceof Unit && t.military ? this.upg[t.faction].def * UPGRADES.def.bonus : 0);
@@ -632,7 +639,7 @@ export class World {
         const t = this.findEnemy({ x: b.x, y: b.y, faction: b.faction }, b.stats.attack.range * TILE);
         if (t instanceof Unit) {
           b.cooldown = b.stats.attack.cooldown;
-          const dmg = Math.max(1, b.stats.attack.dmg - this.armor(t));
+          const dmg = Math.max(1, this.towerAtk(b) - this.armor(t));
           this.sound('arrow', b.x, b.y);
           this.fx.projectile(b.x, b.y - 20, t.x, t.y - 4, '#e8dcc0', () => this.damage(t, dmg, b));
         }
@@ -734,7 +741,8 @@ export class World {
       for (let j = i + 1; j < us.length; j++) {
         const b = us[j];
         // Arbeiter laufen durcheinander durch — sonst verstopfen Sammelwege
-        if (!b.alive || (a.kind === 'worker' && b.kind === 'worker')) continue;
+        // Laufende Arbeiter gehen durcheinander durch (sonst Stau), stehende verteilen sich
+        if (!b.alive || (a.kind === 'worker' && b.kind === 'worker' && (a.moving || b.moving))) continue;
         const dx = b.x - a.x;
         const dy = b.y - a.y;
         const d2 = dx * dx + dy * dy;

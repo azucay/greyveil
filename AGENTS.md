@@ -148,6 +148,17 @@ Debug-Zugriff im Browser: `window.__greyveil.scene()` liefert die GameScene (`.w
 - Leicht wird über `armyReserve` gebremst: Goldpolster, Warteschlange 1 und kein vorgezogener Angriff. Gegen einen passiven Spieler gewinnt Leicht nach ca. 9 Minuten, Normal nach ca. 6.
 ---
 
+---
+### [v0.5] Balance, Turm, Kampfwerte im HUD — 2026-10-19
+**Was ich vorher hätte wissen sollen:**
+- Schwierigkeit lässt sich fair über `unitDmg`/`unitHp` im KI-Profil steuern (wirkt nur auf KI-Kämpfer) statt nur über die Wirtschaft.
+**Fallstricke:**
+- Arbeiter dürfen sich abstoßen, solange mindestens einer steht. Nur wenn beide laufen, entfällt die Separation (Korridor-Stau).
+- `Unit.maxHp` ist jetzt ein Feld (wird beim Spawn skaliert), kein Getter mehr.
+**Nützliche Erkenntnisse:**
+- Klingen wirkt auch auf Türme (`world.towerAtk`). Das HUD zeigt ⚔/🛡 inkl. Upgrade-Bonus über `data-live="cmb"`.
+---
+
 Format:
 ```
 ---

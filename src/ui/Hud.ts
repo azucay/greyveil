@@ -211,7 +211,7 @@ export class Hud {
     }
 
     if (b) {
-      info.innerHTML = `<div class="row"><img class="big" src="${this.icon(b.built ? b.tex : `b_${b.kind}_player`)}"><div><b>${b.stats.name}</b><span class="hp" data-live="hp"></span><span class="hint" data-live="state"></span></div></div>`;
+      info.innerHTML = `<div class="row"><img class="big" src="${this.icon(b.built ? b.tex : `b_${b.kind}_player`)}"><div><b>${b.stats.name}</b><span class="hp" data-live="hp"></span><span class="cmb" data-live="cmb"></span><span class="hint" data-live="state"></span></div></div>`;
       if (b.built) {
         for (const k of b.stats.trains) acts.append(this.button(UNITS[k].name, `u_${k}_player`, UNITS[k].cost, () => s.world.train(b, k)));
         if (b.kind === 'barracks')
@@ -219,7 +219,7 @@ export class Hud {
             const c = s.world.nextUpgrade('player', key);
             const lvl = s.world.upg.player[key];
             if (c && !s.world.researching('player', key))
-              acts.append(this.button(`${UPGRADES[key].name} ${'I'.repeat(lvl + 1)}`, null, c, () => s.world.research(b, key), key === 'atk' ? 'upg-atk' : 'upg-def'));
+              acts.append(this.button(`${UPGRADES[key].name} ${'I'.repeat(lvl + 1)}<br><em>+${UPGRADES[key].bonus} ${key === 'atk' ? 'Angriff' : 'Rüstung'}</em>`, null, c, () => s.world.research(b, key), key === 'atk' ? 'upg-atk' : 'upg-def'));
           }
         if (b.queue.length) acts.append(this.button('Abbruch', null, null, () => s.world.cancelTrain(b), 'cancel'));
       }
@@ -231,12 +231,17 @@ export class Hud {
     if (units.length === 1) {
       const u = units[0];
       const st = u.stats;
-      return `<div class="row"><img class="big" src="${this.icon(`u_${u.kind}_player`)}"><div><b>${st.name}</b><span class="hp" data-live="hp"></span><span class="hint" data-live="state"></span></div></div>`;
+      return `<div class="row"><img class="big" src="${this.icon(`u_${u.kind}_player`)}"><div><b>${st.name}</b><span class="hp" data-live="hp"></span><span class="cmb" data-live="cmb"></span><span class="hint" data-live="state"></span></div></div>`;
     }
     const counts = new Map<UnitKind, number>();
     for (const u of units) counts.set(u.kind, (counts.get(u.kind) ?? 0) + 1);
     const chips = [...counts].map(([k, n]) => `<span class="chip"><img src="${this.icon(`u_${k}_player`)}">${n}</span>`).join('');
     return `<b>${units.length} Einheiten</b><div class="chips">${chips}</div>`;
+  }
+
+  private setCmb(text: string) {
+    const el = document.querySelector<HTMLElement>('[data-live="cmb"]');
+    if (el) el.textContent = text;
   }
 
   /** Werte, die sich ständig ändern (HP, Fortschritt), ohne Panel-Neuaufbau. */
@@ -249,11 +254,21 @@ export class Hud {
     const b = s.selectedBuilding;
     if (u && s.selectedUnits.length === 1) {
       hp.textContent = `${Math.ceil(u.hp)} / ${u.maxHp} LP`;
+      const w = s.world;
+      const da = u.military ? w.upg.player.atk * UPGRADES.atk.bonus : 0;
+      const dd = u.military ? w.upg.player.def * UPGRADES.def.bonus : 0;
+      const range = u.stats.range > 1 ? ` · Reichw. ${u.stats.range}` : '';
+      this.setCmb(`⚔ ${w.atk(u)}${da ? ` (+${da})` : ''} · 🛡 ${w.armor(u)}${dd ? ` (+${dd})` : ''}${range}`);
       const o = u.order;
       st.textContent =
         o.type === 'gather' ? (o.res === 'gold' ? 'Schürft Gold' : 'Fällt Holz') : o.type === 'build' ? 'Baut' : o.type === 'attack' ? 'Kämpft' : o.type === 'move' ? 'Unterwegs' : 'Bereit';
     } else if (b) {
       hp.textContent = `${Math.ceil(b.hp)} / ${b.maxHp} LP`;
+      const w = s.world;
+      const up = w.upg.player;
+      if (b.stats.attack) this.setCmb(`⚔ ${w.towerAtk(b)}${up.atk ? ` (+${up.atk * UPGRADES.atk.bonus})` : ''} · 🛡 ${b.stats.armor} · Reichw. ${b.stats.attack.range}`);
+      else if (b.kind === 'barracks') this.setCmb(`Kämpfer: ⚔ +${up.atk * UPGRADES.atk.bonus} · 🛡 +${up.def * UPGRADES.def.bonus}`);
+      else this.setCmb(`🛡 ${b.stats.armor}`);
       if (!b.built) st.textContent = `Im Bau · ${Math.floor(b.progress * 100)}%`;
       else if (b.research) st.textContent = `Erforscht ${UPGRADES[b.research.key].name} · ${Math.floor((b.research.t / UPGRADES[b.research.key].time) * 100)}%`;
       else if (b.queue.length) st.textContent = `Bildet aus: ${b.queue.map((k) => UNITS[k].name).join(', ')}`;

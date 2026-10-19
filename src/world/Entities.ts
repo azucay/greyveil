@@ -43,6 +43,7 @@ export class Unit {
   ) {
     this.stats = UNITS[kind];
     this.hp = this.stats.hp;
+    this.maxHp = this.stats.hp;
     this.x = x;
     this.y = y;
     this.sprite = scene.add.image(x, y, `u_${kind}_${faction}`).setOrigin(0.5, 0.85);
@@ -61,9 +62,7 @@ export class Unit {
   get military() {
     return this.kind !== 'worker';
   }
-  get maxHp() {
-    return this.stats.hp;
-  }
+  maxHp: number;
 }
 
 export class Building {
